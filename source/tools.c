@@ -303,35 +303,6 @@ void debug_log_write_impl(const char *text, ...) {
 	f_close(&debug_log_file);
 }
 
-void test_total_heap() {
-	size_t total_test = 0;
-	while (1) {
-		void *p = malloc(1024 * 1024); // 1MB
-		if (!p) break;
-		total_test++;
-	}
-	debug_log_write("Max heap ~ %u MB\n", total_test);
-}
-
-void debug_dump_gpt(link_t *gpt) {
-	// emmc_part_t *p;
-
-	debug_log_write("==== GPT partition table ====\n");
-
-	LIST_FOREACH_ENTRY(emmc_part_t, p, gpt, link)
-	{
-		debug_log_write(
-			"Part: name='%s' lba_start=%d lba_end=%d sectors=%d\n",
-			p->name,
-			(u32)p->lba_start,
-			(u32)p->lba_end,
-			(u32)(p->lba_end - p->lba_start + 1)
-		);
-	}
-
-	debug_log_write("==== END GPT ====\n");
-}
-
 static bool part_is_encrypted(emmc_part_t *part) {
 	switch (part->index) {
 		case 0:  /* PRODINFO */

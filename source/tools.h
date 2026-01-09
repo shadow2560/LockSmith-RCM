@@ -85,8 +85,6 @@ char *bdk_strdup(const char *s);
 void mkdir_recursive(const char *path);
 void debug_log_start_impl();
 void debug_log_write_impl(const char *text, ...);
-void test_total_heap();
-void debug_dump_gpt(link_t *gpt);
 bool get_emmc_id(char *emmc_id_out);
 bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool set_partition, bool fatfs_mount, bool test_loaded_keys, u64 *part_size_bytes_buf, bool *is_boot_buf, bool *is_bis_buf, emmc_part_t *part_buf);
 void unmount_nand_part(link_t *gpt, bool is_boot_part, bool is_bis, bool nand_close, bool fatfs_unmount);
