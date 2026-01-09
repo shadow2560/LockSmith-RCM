@@ -95,4 +95,3 @@ Then clone andd build the project:
 git clone https://github.com/shadow2560/LockSmith-RCM.git
 cd LockSmith-RCM
 make
-`
