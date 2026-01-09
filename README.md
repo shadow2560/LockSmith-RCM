@@ -91,6 +91,8 @@ Follow the guide located [here](https://devkitpro.org/wiki/Getting_Started) to i
 ` pacman -S switch-dev devkitARM devkitarm-rules
 
 Then clone andd build the project:
-` git clone https://github.com/shadow2560/LockSmith-RCM.git
-` cd LockSmith-RCM
-` make
+```
+git clone https://github.com/shadow2560/LockSmith-RCM.git
+cd LockSmith-RCM
+make
+`
