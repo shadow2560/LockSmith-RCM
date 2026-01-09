@@ -39,6 +39,7 @@ These files can be placed in "sd:/LockSmith-RCM" folder to launch a specific fun
 
 List of files and associated functions:
 | filename | function launched |
+|----------|-------------------|
 | fix_dg_sysnand | Fix downgrade from firmware 21.0.0+ to a lower firmware on sysnand |
 | fix_dg_emunand | Fix downgrade from firmware 21.0.0+ to a lower firmware on emunand |
 | wip_sysnand | Wip sysnand |
