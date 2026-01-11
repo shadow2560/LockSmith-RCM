@@ -8,6 +8,7 @@
 #include "keys/keys.h"
 #include <libs/fatfs/ff.h>
 #include <mem/heap.h>
+#include <soc/hw_init.h>
 #include <soc/timer.h>
 #include "storage/emummc.h"
 #include <storage/emmc.h>
@@ -1274,4 +1275,114 @@ int save_fb_to_bmp(const char* filename)
 	timer = get_tmr_ms() + 2000;
 
 	return res;
+}
+
+static void *coreboot_addr;
+
+static void reloc_patcher(u32 payload_dst, u32 payload_src, u32 payload_size) {
+	memcpy((u8 *)payload_src, (u8 *)IPL_LOAD_ADDR, PATCHED_RELOC_SZ);
+
+	reloc_meta_t *relocator = (reloc_meta_t *)(payload_src + RELOC_META_OFF);
+
+	relocator->start = payload_dst - ALIGN(PATCHED_RELOC_SZ, 0x10);
+	relocator->stack = PATCHED_RELOC_STACK;
+	relocator->end   = payload_dst + payload_size;
+	relocator->ep    = payload_dst;
+
+	if (payload_size == 0x7000) {
+		memcpy((u8 *)(payload_src + ALIGN(PATCHED_RELOC_SZ, 0x10)), coreboot_addr, 0x7000); //Bootblock
+		*(vu32 *)CBFS_DRAM_EN_ADDR = CBFS_DRAM_MAGIC;
+	}
+}
+
+int launch_payload(char *path, bool clear_screen) {
+	if (clear_screen)
+		gfx_clear_grey(0x1B);
+	gfx_con_setpos(0, 0);
+	if (!path)
+		return 1;
+
+	if (sd_mount()) {
+		FIL fp;
+		if (f_open(&fp, path, FA_READ)) {
+			gfx_con.mute = false;
+			EPRINTFARGS("Payload file is missing!\n(%s)", path);
+
+			goto out;
+		}
+
+		// Read and copy the payload to our chosen address
+		void *buf;
+		u32 size = f_size(&fp);
+
+		if (size < 0x30000)
+			buf = (void *)RCM_PAYLOAD_ADDR;
+		else {
+			coreboot_addr = (void *)(COREBOOT_END_ADDR - size);
+			buf = coreboot_addr;
+			if (h_cfg.t210b01) {
+				f_close(&fp);
+
+				gfx_con.mute = false;
+				EPRINTF("Coreboot not allowed on Mariko!");
+
+				goto out;
+			}
+		}
+
+		if (f_read(&fp, buf, size, NULL)) {
+			f_close(&fp);
+
+			goto out;
+		}
+
+		f_close(&fp);
+
+		sd_end();
+
+		if (size < 0x30000) {
+			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, ALIGN(size, 0x10));
+
+			hw_deinit(false, byte_swap_32(*(u32 *)(buf + size - sizeof(u32))));
+		} else {
+			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, 0x7000);
+
+			// Get coreboot seamless display magic.
+			u32 magic = 0;
+			char *magic_ptr = buf + COREBOOT_VER_OFF;
+			memcpy(&magic, magic_ptr + strlen(magic_ptr) - 4, 4);
+			hw_deinit(true, magic);
+		}
+
+		// Some cards (Sandisk U1), do not like a fast power cycle. Wait min 100ms.
+		sdmmc_storage_init_wait_sd();
+
+		void (*ext_payload_ptr)() = (void *)EXT_PAYLOAD_ADDR;
+
+		// Launch our payload.
+		(*ext_payload_ptr)();
+	}
+
+out:
+	sd_end();
+	return 1;
+}
+
+void auto_reboot() {
+		sd_mount();
+		// If the console is a patched or Mariko unit
+		if (h_cfg.t210b01 || h_cfg.rcm_patched) {
+			power_set_state(POWER_OFF_REBOOT);
+		} else {
+			if (f_stat("payload.bin", NULL) == FR_OK)
+				launch_payload("payload.bin", false);
+
+			if (f_stat("bootloader/update.bin", NULL) == FR_OK)
+				launch_payload("bootloader/update.bin", false);
+
+			if (f_stat("atmosphere/reboot_payload.bin", NULL) == FR_OK)
+				launch_payload("atmosphere/reboot_payload.bin", false);
+
+			EPRINTF("Failed to launch payload.");
+		}
 }
