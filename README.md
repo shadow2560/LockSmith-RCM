@@ -68,6 +68,7 @@ List of files and associated functions:
 * Restore BCPKG partitions only from EmmcHacGen package, useful to restore EXFAT driver.
 * Dump/restore PRODINFO and eventualy PRODINFOF, BOOT0 and BOOT1 partitions (to/from "LockSmith-RCM/backups/[emmc_id]" folder).
 * Dumping/restoring functions must also work on splited files partition (not realy needed for now cause no functions actualy need it)
+* Navigate also via Joycons, tested but take too much space to be implemented for now
 * Choose the emunand to work on by parsing also the Hekate's configs and config the emunand vars accordingly. Done but not tested.
 * Test Hekate's emunand configs, if we have the same "emupath" for X emunands we must keep only one
 * Improve the size of the payload, we are on the limits with the compressed one. I've tried to rewrite the ProdinfoGen part to use nx_emmc_cal0_t struct but the payload is bigger with these modifications, I have thinked that using this same struct already used in the payload could reduce the size but it's not the case so I'll keep the old version (keeping the rewrited version in the ".bak" files in "source/prodinfogen" folder just in case I want to re-work on that later, I haven't even tested the modifications so it even may not work for now).
