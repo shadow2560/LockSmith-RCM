@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 shchmue
+ * Copyright (c) 2018 naehrwert
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,15 +14,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CAL0_READ_H_
-#define _CAL0_READ_H_
+#ifndef _PKG1_H_
+#define _PKG1_H_
 
-#include "../storage/nx_emmc_bis.h"
 #include <utils/types.h>
 
-u16  crc16_calc(const u8 *buf, u32 len);
-bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer);
-bool cal0_get_ssl_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
-bool cal0_get_eticket_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+#define PKG1_MAX_SIZE  0x40000
+#define PKG1_OFFSET    0x100000
+#define KEYBLOB_OFFSET 0x180000
+
+typedef struct _bl_hdr_t210b01_t
+{
+	u8  aes_mac[0x10];
+	u8  rsa_sig[0x100];
+	u8  salt[0x20];
+	u8  sha256[0x20];
+	u32 version;
+	u32 size;
+	u32 load_addr;
+	u32 entrypoint;
+	u8  rsvd[0x10];
+} bl_hdr_t210b01_t;
+
+typedef struct _pkg1_id_t
+{
+	const char *id;
+	u32 kb;
+} pkg1_id_t;
+
+const pkg1_id_t *pkg1_identify(u8 *pkg1);
 
 #endif

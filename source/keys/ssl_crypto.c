@@ -61,7 +61,6 @@ void ssl_derive_rsa_kek_original(key_storage_t *keys, void *out_rsa_kek, bool is
 
 bool decrypt_ssl_rsa_key(key_storage_t *keys, void *buffer) {
 	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, buffer)) {
-	// if (!cal0_read(buffer)) {
 		return false;
 	}
 

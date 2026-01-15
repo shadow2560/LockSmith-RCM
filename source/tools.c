@@ -8,6 +8,7 @@
 #include "keys/keys.h"
 #include <libs/fatfs/ff.h>
 #include <mem/heap.h>
+#include <sec/se.h>
 #include <soc/hw_init.h>
 #include <soc/timer.h>
 #include "storage/emummc.h"
@@ -21,6 +22,7 @@
 #include <utils/sprintf.h>
 
 #include "gfx/messages.h"
+#include "hos/pkg1.h"
 
 bool emunand_probe_path(const char *path)
 {
@@ -462,7 +464,7 @@ bool wait_vol_plus() {
 }
 
 bool delete_save_from_nand(const char* savename, bool on_system_part) {
-	if (!wait_vol_plus()) {
+	if (!bis_loaded && !wait_vol_plus()) {
 		return false;
 	}
 	if (on_system_part) {
@@ -580,6 +582,9 @@ static bool sd_has_enough_space(u64 required_bytes) {
 }
 
 bool flash_or_dump_part(bool flash, const char *sd_filepath, const char *part_name, bool file_encrypted) {
+	if (file_encrypted && !bis_loaded) {
+		return false;
+	}
 	bool is_boot = false;
 	bool use_bis = false;
 	u64 part_size_bytes = 0;
@@ -780,8 +785,11 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 	}
 	*/
 
-	LIST_INIT(gpt);
+	if (!bis_loaded) {
+		return false;
+	}
 
+	LIST_INIT(gpt);
 	if (on_system_part) {
 		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
 			return false;
@@ -1385,4 +1393,182 @@ void auto_reboot() {
 
 			EPRINTF("Failed to launch payload.");
 		}
+}
+
+enum NcaTypes {
+	Porgram = 0,
+	Meta,
+	Control,
+	Manual,
+	Data,
+	PublicData
+};
+
+// Thanks switchbrew https://switchbrew.org/wiki/NCA_Format
+// This function is hacky, should change it but am lazy
+int GetNcaType(char *path){
+	FIL fp;
+	u32 read_bytes = 0;
+
+	if (f_open(&fp, path, FA_READ | FA_OPEN_EXISTING))
+		return -1;
+
+	u8 *dec_header = (u8*)malloc(0x400);
+
+	if (f_lseek(&fp, 0x200) || f_read(&fp, dec_header, 32, &read_bytes) || read_bytes != 32){
+		f_close(&fp);
+		free(dec_header);
+		return -1;
+	}
+
+	se_aes_xts_crypt(18,17,0,1, dec_header + 0x200, dec_header, 32, 1);
+
+	u8 ContentType = dec_header[0x205];
+	
+	f_close(&fp);
+	free(dec_header);
+	return ContentType;
+}
+
+static ALWAYS_INLINE u8 *_read_pkg1(const pkg1_id_t **pkg1_id) {
+	// Read package1.
+	u8 *pkg1 = (u8 *)malloc(PKG1_MAX_SIZE);
+	if (!mount_nand_part(NULL, "BOOT0", true, true, false, false, NULL, NULL, NULL, NULL)) {
+		return NULL;
+	}
+	if (!emummc_storage_read(PKG1_OFFSET / EMMC_BLOCKSIZE, PKG1_MAX_SIZE / EMMC_BLOCKSIZE, pkg1)) {
+		unmount_nand_part(NULL, true, false, true, false);
+		return NULL;
+	}
+
+	u32 pk1_offset = h_cfg.t210b01 ? sizeof(bl_hdr_t210b01_t) : 0; // Skip T210B01 OEM header.
+	*pkg1_id = pkg1_identify(pkg1 + pk1_offset);
+	if (!*pkg1_id) {
+		//gfx_hexdump(0, pkg1 + pk1_offset, 0x20);
+		char pkg1txt[16] = {0};
+		memcpy(pkg1txt, pkg1 + pk1_offset + 0x10, 14);
+		gfx_printf("Unknown pkg1 version\nMake sure you have the latest version of TegraExplorer\n\nPKG1: '%s'\n", pkg1txt);
+		unmount_nand_part(NULL, true, false, true, false);
+		return NULL;
+	}
+
+	unmount_nand_part(NULL, true, false, true, false);
+	return pkg1;
+}
+
+void DumpFw() {
+	cls();
+	char sysPath[25 + 36 + 3 + 1]; // 24 for "bis:/Contents/registered", 36 for ncaName.nca, 3 for /00, and 1 to make sure :)
+	char *baseSdPath;
+
+	log_printf(LOG_INFO, LOG_MSG_DUMP_FW_BEGIN);
+
+	u32 timer = get_tmr_s();
+
+	if (!sd_mount())
+		return;
+
+	if (!bis_loaded)
+		return;
+
+	const pkg1_id_t *pkg1_id;
+	u8 *pkg1 = _read_pkg1(&pkg1_id);
+	if (!pkg1) {
+		return;
+	}
+
+	LIST_INIT(gpt);
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		free(pkg1);
+		return;
+	}
+
+	baseSdPath = malloc(36 + 16);
+	s_printf(baseSdPath, "sd:/LockSmith-RCM/Firmware/%d (%s)", (u8)pkg1_id->kb, pkg1_id->id);
+	int baseSdPathLen = strlen(baseSdPath);
+
+	f_mkdir("sd:/LockSmith-RCM");
+	f_mkdir("sd:/LockSmith-RCM/Firmware");
+
+	gfx_printf("Pkg1 id: '%s', kb %d\n", pkg1_id->id, (u8)pkg1_id->kb);
+	free(pkg1);
+	if (f_stat(baseSdPath, NULL) == FR_OK) {
+		SETCOLOR(COLOR_ORANGE, COLOR_DEFAULT);
+		gfx_printf("Destination already exists. Press vol+ to replace or any key to cancel.");
+		if (!wait_vol_plus()) {
+			free(baseSdPath);
+			unmount_nand_part(&gpt, false, true, true, true);
+			return;
+		}
+		RESETCOLOR;
+		gfx_printf("\nDeleting... ");
+		f_cp_or_rm_rf(baseSdPath, NULL);
+		gfx_putc('\n');
+	}
+
+	f_mkdir(baseSdPath);
+
+	gfx_printf("Out: %s\nReading entries...\n", baseSdPath);
+	int readRes = 0;
+	DIR  dir;
+	FILINFO fno;
+	const char bis_fw_dir_path[] = "bis:/Contents/registered";
+	readRes = f_opendir(&dir, bis_fw_dir_path);
+	if (readRes){
+		log_printf(LOG_ERR, LOG_MSG_ERR_OPEN_FOLDER, bis_fw_dir_path);
+		free(baseSdPath);
+		unmount_nand_part(&gpt, false, true, true, true);
+		return;
+	}
+
+	gfx_printf("Starting dump...\n");
+	SETCOLOR(COLOR_GREEN, COLOR_DEFAULT);
+
+	int res = 0;
+	int total = 1;
+	while(f_readdir(&dir, &fno)) {
+		char name[256 + 1];
+	s_printf(name, "%s", fno.fname);
+
+		if (!strcmp(name, ".") || !strcmp(name, ".."))
+			continue;
+
+		s_printf(sysPath, (fno.fattrib & AM_DIR) ? "%s/%s/00" : "%s/%s", "bis:/Contents/registered", name);
+		int contentType = GetNcaType(sysPath);
+
+		if (contentType < 0){
+			res = 1;
+			break;
+		}
+
+		char *sdPath = malloc(baseSdPathLen + 45);
+		s_printf(sdPath, "%s/%s", baseSdPath, name);
+		if (contentType == Meta)
+			memcpy(sdPath + strlen(sdPath) - 4, ".cnmt.nca", 10);
+		
+		gfx_printf("[%3d] %s\r", total, name);
+		total++;
+		int err = f_copy(sysPath, sdPath, NULL);
+		free(sdPath);
+		if (err) {
+			gfx_printf("Error during file copy");
+			res = 1;
+			break;
+		}
+	}
+	f_closedir(&dir);
+	RESETCOLOR;
+
+	if (res) {
+		gfx_printf("\n");
+		log_printf(LOG_ERR, LOG_MSG_DUMP_FW_ERROR);
+		gfx_printf("\n");
+	} else {
+		gfx_printf("\n\n");
+		log_printf(LOG_INFO, LOG_MSG_DUMP_FW_END, get_tmr_s() - timer);
+		gfx_printf("\n");
+	}
+	free(baseSdPath);
+	unmount_nand_part(&gpt, false, true, true, true);
+	save_screenshot_and_go_back("fw_dump");
 }

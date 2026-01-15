@@ -47,6 +47,7 @@
 #include <utils/util.h>
 
 #include "fuse_check/fuse_check.h"
+#include "incognito/incognito.h"
 #include "keys/keys.h"
 #include "prodinfogen/build_prodinfo.h"
 #include "unbrick/unbrick.h"
@@ -76,6 +77,7 @@ bool called_from_config_files = false;
 bool called_from_AIO_LS_Pack_Updater = false;
 bool menu_on_sysnand = false;
 bool bis_from_console = true;
+bool bis_loaded = false;
 char emmc_id[9] = {0};  // 8 hex chars + null terminator
 int emunand_count = 0;
 int prev_sec_emunand = 0;
@@ -299,6 +301,15 @@ static void set_bis_keys_from_file() {
 	init_and_verify_bis_keys(true);
 }
 
+static void reload_keys() {
+	cls();
+	if (bis_from_console) {
+		bis_loaded = init_and_verify_bis_keys(false);
+	} else {
+		bis_loaded = init_and_verify_bis_keys(true);
+	}
+}
+
 void switch_nand_work() {
 	if (!emummc_available) {
 		h_cfg.emummc_force_disable = true;
@@ -309,11 +320,7 @@ void switch_nand_work() {
 	if (menu_on_sysnand) {
 		select_and_apply_emunand();
 		if (emunand_count > 1 && prev_sec_emunand != cur_sec_emunand) {
-			if (bis_from_console) {
-				set_bis_keys_from_console();
-			} else {
-				set_bis_keys_from_file();
-			}
+			reload_keys();
 		}
 	} else {
 		h_cfg.emummc_force_disable = true;
@@ -326,6 +333,13 @@ void switch_nand_work() {
 static void keys_dump() {
 	cls();
 	dump_keys(false);
+	// reload_keys();
+}
+
+static void dump_amiibo_keys() {
+	cls();
+	derive_amiibo_keys();
+	// reload_keys();
 }
 
 static void dump_mariko_partial_keys() {
@@ -366,12 +380,14 @@ static void build_prodinfo_from_scratch() {
 	// return;
 	cls();
 	build_prodinfo(NULL, true);
+	// reload_keys();
 }
 
 static void build_prodinfo_from_donor() {
 	// return;
 	cls();
 	build_prodinfo(DONOR_PRODINFO_FILENAME, true);
+	// reload_keys();
 }
 
 static void build_and_flash_prodinfo_from_scratch() {
@@ -382,6 +398,7 @@ static void build_and_flash_prodinfo_from_scratch() {
 		return;
 	}
 	build_prodinfo_and_flash(true);
+	// reload_keys();
 }
 
 static void build_and_flash_prodinfo_from_donor() {
@@ -392,6 +409,7 @@ static void build_and_flash_prodinfo_from_donor() {
 		return;
 	}
 	build_prodinfo_and_flash(false);
+	// reload_keys();
 }
 
 static void emmchacgen_package_flash() {
@@ -438,18 +456,60 @@ static void restore_prodinfo() {
 	flash_or_dump_part(true, path, "PRODINFO", false);
 }
 
+static void apply_incognito() {
+	// return;
+	cls();
+	log_printf(LOG_INFO, LOG_MSG_INCOGNITO_BEGIN);
+	if (!wait_vol_plus()) {
+		return;
+	}
+	incognito();
+	// reload_keys();
+}
+
+#define AUTO_BASE "sd:/LockSmith-RCM/"
+static const auto_action_t auto_actions[] = {
+	// { AUTO_BASE "dump_fw_sysnand", DumpFw, false },
+	// { AUTO_BASE "dump_fw_emunand", DumpFw, true  },
+	// { AUTO_BASE "incognito_sysnand", apply_incognito, false },
+	// { AUTO_BASE "incognito_emunand", apply_incognito, true  },
+	{ AUTO_BASE "fix_dg_sysnand", fix_downgrade, false },
+	{ AUTO_BASE "fix_dg_emunand", fix_downgrade, true  },
+	{ AUTO_BASE "wip_sysnand",    wip_nand,     false },
+	{ AUTO_BASE "wip_emunand",    wip_nand,     true  },
+	{ AUTO_BASE "rm_parental_control_sysnand",    remove_parental_control,     false },
+	{ AUTO_BASE "rm_parental_control_emunand",    remove_parental_control,     true  },
+	{ AUTO_BASE "unbrick_sysnand",    emmchacgen_package_flash,     false },
+	{ AUTO_BASE "unbrick_emunand",    emmchacgen_package_flash,     true  },
+	{ AUTO_BASE "unbrick_and_wip_sysnand",    emmchacgen_package_flash_with_wip,     false },
+	{ AUTO_BASE "unbrick_and_wip_emunand",    emmchacgen_package_flash_with_wip,     true  },
+	{ AUTO_BASE "rm_erpt_sysnand",    del_erpt_save,     false },
+	{ AUTO_BASE "rm_erpt_emunand",    del_erpt_save,     true  },
+	{ AUTO_BASE "sync_joycons_sysnand",    sync_joycons_between_nands,     false },
+	{ AUTO_BASE "sync_joycons_emunand",    sync_joycons_between_nands,     true  },
+	{ AUTO_BASE "prodinfogen_flash_scratch_sysnand",    build_and_flash_prodinfo_from_scratch,     false },
+	{ AUTO_BASE "prodinfogen_flash_scratch_emunand",    build_and_flash_prodinfo_from_scratch,     true  },
+	{ AUTO_BASE "prodinfogen_flash_donor_sysnand",    build_and_flash_prodinfo_from_donor,     false },
+	{ AUTO_BASE "prodinfogen_flash_donor_emunand",    build_and_flash_prodinfo_from_donor,     true  },
+	{ AUTO_BASE "dump_keys_sysnand",    keys_dump,     false },
+	{ AUTO_BASE "dump_keys_emunand",    keys_dump,     true  },
+	{ AUTO_BASE "dump_amiibo_keys",    dump_amiibo_keys,     false  },
+};
+
 ment_t ment_top[] = {
 	MDEF_HANDLER("Switch nand work", switch_nand_work, COLOR_YELLOW),
 	MDEF_HANDLER("Use console's biskeys", set_bis_keys_from_console, COLOR_GREEN),
 	MDEF_HANDLER("Use biskeys from file (\"sd:/LockSmith-RCM/prod.keys\" file)", set_bis_keys_from_file, COLOR_RED),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
 	MDEF_HANDLER("Dump keys", keys_dump, COLOR_TURQUOISE),
-	MDEF_HANDLER("Dump Amiibo keys", derive_amiibo_keys, COLOR_TURQUOISE),
+	MDEF_HANDLER("Dump Amiibo keys", dump_amiibo_keys, COLOR_TURQUOISE),
 	MDEF_HANDLER("Dump Mariko Partials keys", dump_mariko_partial_keys, COLOR_TURQUOISE),
+	// MDEF_HANDLER("Dump firmware", DumpFw, COLOR_TURQUOISE),
 	MDEF_HANDLER("Fuse check", fuse_check, COLOR_TURQUOISE),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
 	// MDEF_HANDLER("Dump PRODINFO", dump_prodinfo, COLOR_TURQUOISE),
 	// MDEF_HANDLER("Restore PRODINFO", restore_prodinfo, COLOR_RED),
+	// MDEF_HANDLER("Apply Incognito", apply_incognito, COLOR_RED),
 	MDEF_HANDLER("Build PRODINFO file from scratch", build_prodinfo_from_scratch, COLOR_TURQUOISE),
 	MDEF_HANDLER("Build PRODINFO file from donor", build_prodinfo_from_donor, COLOR_TURQUOISE),
 	MDEF_HANDLER("Build and flash PRODINFO file from scratch", build_and_flash_prodinfo_from_scratch, COLOR_RED),
@@ -477,20 +537,16 @@ ment_t ment_top[] = {
 
 menu_t menu_top = { ment_top, NULL, 0, 0 };
 
-void grey_out_menu_item(ment_t *menu)
-{
+void grey_out_menu_item(ment_t *menu) {
 	// menu->type = MENT_CAPTION;
 	// menu->color = 0xFF555555;
 	// menu->handler = NULL;
 	menu->enabled = 0;
 }
 
-void reset_menu(menu_t *menu)
-{
-	for (int i = 0; menu->ents[i].type != MENT_END; i++)
-	{
-		switch (menu->ents[i].type)
-		{
+void reset_menu(menu_t *menu) {
+	for (int i = 0; menu->ents[i].type != MENT_END; i++) {
+		switch (menu->ents[i].type) {
 		case MENT_HANDLER:
 		case MENT_MENU:
 		case MENT_DATA:
@@ -506,32 +562,8 @@ void reset_menu(menu_t *menu)
 	}
 }
 
-#define AUTO_BASE "sd:/LockSmith-RCM/"
-static const auto_action_t auto_actions[] = {
-	{ AUTO_BASE "fix_dg_sysnand", fix_downgrade, false },
-	{ AUTO_BASE "fix_dg_emunand", fix_downgrade, true  },
-	{ AUTO_BASE "wip_sysnand",    wip_nand,     false },
-	{ AUTO_BASE "wip_emunand",    wip_nand,     true  },
-	{ AUTO_BASE "rm_parental_control_sysnand",    remove_parental_control,     false },
-	{ AUTO_BASE "rm_parental_control_emunand",    remove_parental_control,     true  },
-	{ AUTO_BASE "unbrick_sysnand",    emmchacgen_package_flash,     false },
-	{ AUTO_BASE "unbrick_emunand",    emmchacgen_package_flash,     true  },
-	{ AUTO_BASE "unbrick_and_wip_sysnand",    emmchacgen_package_flash_with_wip,     false },
-	{ AUTO_BASE "unbrick_and_wip_emunand",    emmchacgen_package_flash_with_wip,     true  },
-	{ AUTO_BASE "rm_erpt_sysnand",    del_erpt_save,     false },
-	{ AUTO_BASE "rm_erpt_emunand",    del_erpt_save,     true  },
-	{ AUTO_BASE "sync_joycons_sysnand",    sync_joycons_between_nands,     false },
-	{ AUTO_BASE "sync_joycons_emunand",    sync_joycons_between_nands,     true  },
-	{ AUTO_BASE "prodinfogen_flash_scratch_sysnand",    build_and_flash_prodinfo_from_scratch,     false },
-	{ AUTO_BASE "prodinfogen_flash_scratch_emunand",    build_and_flash_prodinfo_from_scratch,     true  },
-	{ AUTO_BASE "prodinfogen_flash_donor_sysnand",    build_and_flash_prodinfo_from_donor,     false },
-	{ AUTO_BASE "prodinfogen_flash_donor_emunand",    build_and_flash_prodinfo_from_donor,     true  },
-	{ AUTO_BASE "dump_keys_sysnand",    keys_dump,     false },
-	{ AUTO_BASE "dump_keys_emunand",    keys_dump,     true  },
-	{ AUTO_BASE "dump_amiibo_keys",    derive_amiibo_keys,     false  },
-};
-
 void mask_emmc_need_for_menu() {
+	grey_out_menu_item(&ment_top[4]);
 	grey_out_menu_item(&ment_top[5]);
 	grey_out_menu_item(&ment_top[6]);
 	grey_out_menu_item(&ment_top[7]);
@@ -784,11 +816,10 @@ void init_payload() {
 		easy_rename("payload.bin.temp", "payload.bin");
 	}
 
-	bool keys_derived;
 	if (f_stat("sd:/LockSmith-RCM/prod.keys", NULL)) {
-		keys_derived = init_and_verify_bis_keys(false);
+		bis_loaded = init_and_verify_bis_keys(false);
 	} else {
-		keys_derived = init_and_verify_bis_keys(true);
+		bis_loaded = init_and_verify_bis_keys(true);
 	}
 	if (!have_minerva) {
 		cls();
@@ -803,7 +834,7 @@ void init_payload() {
 		btn_wait();
 		return;
 	}
-	if (keys_derived) {
+	if (bis_loaded) {
 		for (u32 i = 0; i < ARRAY_SIZE(auto_actions); i++)
 			run_auto_action(&auto_actions[i]);
 		if (called_from_config_files && !called_from_AIO_LS_Pack_Updater) {

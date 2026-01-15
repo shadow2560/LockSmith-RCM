@@ -85,6 +85,8 @@ For "mariko_master_kek_sources_dev", "mariko_master_kek_sources" and "master_kek
 
 If the payload freeze during keys dump try to modify the file "/source/keys/keys.c" (search the line starting with "u32 text_buffer_size = MAX(_titlekey_count * sizeof(titlekey_text_buffer_t) + 1, " in function "static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_buffer, bool is_dev) {") and increase the size for the second param of max() function (now it's SZ_32K, before was SZ_16K).
 
+For "source/hos/pkg1.c" infos look at [this file from hekate](https://github.com/cTCaer/hekate/blob/master/bootloader/hos/hos.c).
+
 ## Build
 
 Follow the guide located [here](https://devkitpro.org/wiki/Getting_Started) to install and configure all the tools necessary for the build process. You need to install these package via "pacman" or "dkp-pacman" to build:

@@ -137,6 +137,10 @@ const char *g_log_messages[LOG_MSG_COUNT] = {
 	[LOG_MSG_AMIIBO_KEYS_DUMP_ERR_HASH]   = "Amiibo hash mismatch, skipping save.",
 	[LOG_MSG_AMIIBO_KEYS_DUMP_SUCCESS]   = "Wrote Amiibo keys to %s",
 	[LOG_MSG_AMIIBO_KEYS_DUMP_ERR_SAVE_FILE]   = "Unable to save Amiibo keys to SD.",
+	[LOG_MSG_DUMP_FW_BEGIN]   = "Firmware dump begin...",
+	[LOG_MSG_DUMP_FW_ERROR]   = "Error during firmware dump",
+	[LOG_MSG_DUMP_FW_END]   = "Firmware dump done in %ds",
+	[LOG_MSG_INCOGNITO_BEGIN]   = "Press \"vol+\" to launch the Incognito apply process or any other keys to cancel.",
 	[LOG_MSG_BATCH_END]     = "Batch end"
 };
 

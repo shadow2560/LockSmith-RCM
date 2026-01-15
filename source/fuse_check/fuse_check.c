@@ -410,6 +410,9 @@ void show_fuse_info_page(int scroll_offset) {
 
 /*
 void fuse_check() {
+	if (!bis_loaded) {
+		return;
+	}
 	bool orig_emummc_force_disable = h_cfg.emummc_force_disable;
 	bool orig_emu_enabled = emu_cfg.enabled;
 	h_cfg.emummc_force_disable = true;  // Force sysMMC for fuse check
@@ -566,6 +569,9 @@ void fuse_check() {
 */
 
 void fuse_check() {
+	if (!bis_loaded) {
+		return;
+	}
 	bool orig_emummc_force_disable = h_cfg.emummc_force_disable;
 	bool orig_emu_enabled = emu_cfg.enabled;
 	h_cfg.emummc_force_disable = true;  // Force sysMMC for fuse check

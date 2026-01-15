@@ -47,6 +47,9 @@ void unbrick(const char *sd_folder_path, bool reset) {
 		log_printf(LOG_ERR, LOG_MSG_UNBRICK_FOLDER_ERROR);
 		return;
 	}
+	if (!bis_loaded) {
+		return;
+	}
 	LIST_INIT(gpt);
 	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back(screenshot_name);
@@ -151,7 +154,7 @@ unmount_nand_part(&gpt, false, true, true, true);
 void wip_nand() {
 	cls();
 	log_printf(LOG_INFO, LOG_MSG_WIP_BEGIN);
-	if (!wait_vol_plus()) {
+	if (!bis_loaded && !wait_vol_plus()) {
 		return;
 	}
 

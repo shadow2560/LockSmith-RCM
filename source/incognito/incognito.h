@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 shchmue
+ * Copyright (c) 2019 shchmue
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,15 +14,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CAL0_READ_H_
-#define _CAL0_READ_H_
+#ifndef _INCOGNITO_H_
+#define _INCOGNITO_H_
 
-#include "../storage/nx_emmc_bis.h"
 #include <utils/types.h>
 
-u16  crc16_calc(const u8 *buf, u32 len);
-bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer);
-bool cal0_get_ssl_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
-bool cal0_get_eticket_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+bool incognito();
+bool readData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32, u32));
+bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32, u32));
+bool writeClientCertHash();
+bool writeCal0Hash();
+bool verifyProdinfo(u8 *blob);
+bool backupProdinfo();
+bool restoreProdinfo();
+bool checkBackupExists();
 
 #endif

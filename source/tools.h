@@ -50,6 +50,7 @@ extern bool menu_on_sysnand;
 extern bool called_from_config_files;
 extern bool called_from_AIO_LS_Pack_Updater;
 extern bool bis_from_console;
+extern bool bis_loaded;
 extern char emmc_id[9];
 extern int emunand_count;
 extern int prev_sec_emunand;
@@ -126,5 +127,6 @@ void emunand_list_free();
 int save_fb_to_bmp(const char* filename);
 int launch_payload(char *path, bool clear_screen);
 void auto_reboot();
+void DumpFw();
 
 #endif

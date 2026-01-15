@@ -738,7 +738,6 @@ void derive_amiibo_keys() {
 	// display_backlight_brightness(h_cfg.backlight, 1000);
 	// gfx_clear_partial_grey(0x1B, 32, 1224);
 	// gfx_con_setpos(0, 32);
-	cls();
 	log_printf(LOG_INFO, LOG_MSG_AMIIBO_KEYS_DUMP_BEGIN);
 
 	bool is_dev = fuse_read_hw_state() == FUSE_NX_HW_STATE_DEV;
@@ -859,6 +858,11 @@ bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 	se_aes_key_set(KS_BIS_01_TWEAK, keys->bis_key[1] + 0x10, SE_KEY_128_SIZE);
 	se_aes_key_set(KS_BIS_02_CRYPT, keys->bis_key[2] + 0x00, SE_KEY_128_SIZE);
 	se_aes_key_set(KS_BIS_02_TWEAK, keys->bis_key[2] + 0x10, SE_KEY_128_SIZE);
+
+        // Not for bis but whatever
+	// se_aes_key_set(17, keys->header_key + 0x00, 0x10);
+	// se_aes_key_set(18, keys->header_key + 0x10, 0x10);
+	// se_aes_key_set(19, keys->save_mac_key, 0x10);
 
 	// minerva_change_freq(FREQ_800);
 
