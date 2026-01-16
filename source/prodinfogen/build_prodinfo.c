@@ -182,7 +182,7 @@ static void _master_key_from_key_generation(u8 donor_prodinfo_version, u8 key_ge
 
 	if (donor_prodinfo_version >= 9)
 	{
-		u8 offset_key_generation = key_generation - 3;
+		int offset_key_generation = (int)(key_generation - 3);
 
 		if (offset_key_generation >= 0 && offset_key_generation < 0x8 && key_exists(keyset->master_key[offset_key_generation]))
 		{

@@ -27,7 +27,7 @@ static int is_file_in_keep_list(const char *name)
 		"8000000000000047",
 		"8000000000000053" // calibration datas
 	};
-	for (int i = 0; i < sizeof(keep_files) / sizeof(keep_files[0]); i++) {
+	for (size_t i = 0; i < sizeof(keep_files) / sizeof(keep_files[0]); i++) {
 		if (strcmp(name, keep_files[i]) == 0)
 			return 1;
 	}

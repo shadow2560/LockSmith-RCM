@@ -63,7 +63,7 @@ bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer) {
 		return false;
 	}
 
-	se_aes_xts_crypt(tweak_ks, crypt_ks, DECRYPT, 0, read_buffer, read_buffer, XTS_CLUSTER_SIZE, NX_EMMC_CALIBRATION_SIZE / XTS_CLUSTER_SIZE);
+	se_aes_xts_crypt_old(tweak_ks, crypt_ks, DECRYPT, 0, read_buffer, read_buffer, XTS_CLUSTER_SIZE, NX_EMMC_CALIBRATION_SIZE / XTS_CLUSTER_SIZE);
 
 	if (cal0->magic != MAGIC_CAL0) {
 		log_printf(LOG_ERR, LOG_MSG_ERROR_PRODINFO_MAGIC_READ);

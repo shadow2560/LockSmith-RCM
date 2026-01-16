@@ -28,7 +28,7 @@ bool AddKey(u8 *buff, char *in, u32 len){
 	if (in == NULL || strlen(in) != len * 2)
 		return false;
 
-	for (int i = 0; i < len; i++) {
+	for (u32 i = 0; i < len; i++) {
 		// buff[i] = (u8)((GetHexFromChar(in[i * 2]) << 4) | GetHexFromChar(in[i * 2 + 1]));
 		u8 hi = GetHexFromChar(in[i * 2]);
 		u8 lo = GetHexFromChar(in[i * 2 + 1]);

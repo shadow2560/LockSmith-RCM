@@ -882,3 +882,62 @@ void se_aes_key_partial_set(u32 ks, u32 index, u32 data)
 	SE(SE_CRYPTO_KEYTABLE_ADDR_REG) = SE_KEYTABLE_SLOT(ks) | index;
 	SE(SE_CRYPTO_KEYTABLE_DATA_REG) = data;
 }
+
+int se_aes_xts_crypt_sec_old(u32 tweak_ks, u32 crypt_ks, u32 enc, u64 sec, void *dst, const void *src, u32 sec_size)
+{
+	u8 tweak[0x10];
+	u8 orig_tweak[0x10];
+	u32 *pdst = (u32 *)dst;
+	u32 *psrc = (u32 *)src;
+	u32 *ptweak = (u32 *)tweak;
+
+	//Generate tweak.
+	for (int i = 0xF; i >= 0; i--)
+	{
+		tweak[i] = sec & 0xFF;
+		sec >>= 8;
+	}
+	if (!se_aes_crypt_block_ecb(tweak_ks, ENCRYPT, tweak, tweak))
+		return 0;
+
+	memcpy(orig_tweak, tweak, 0x10);
+
+	// We are assuming a 0x10-aligned sector size in this implementation.
+	for (u32 i = 0; i < sec_size / 0x10; i++)
+	{
+		for (u32 j = 0; j < 4; j++)
+			pdst[j] = psrc[j] ^ ptweak[j];
+
+		_gf256_mul_x_le(tweak);
+		psrc += 4;
+		pdst += 4;
+	}
+
+	if (!se_aes_crypt_ecb(crypt_ks, enc, dst, sec_size, dst, sec_size))
+		return 0;
+
+	pdst = (u32 *)dst;
+	ptweak = (u32 *)orig_tweak;
+	for (u32 i = 0; i < sec_size / 0x10; i++)
+	{
+		for (u32 j = 0; j < 4; j++)
+			pdst[j] = pdst[j] ^ ptweak[j];
+
+		_gf256_mul_x_le(orig_tweak);
+		pdst += 4;
+	}
+
+	return 1;
+}
+
+int se_aes_xts_crypt_old(u32 tweak_ks, u32 crypt_ks, u32 enc, u64 sec, void *dst, const void *src, u32 sec_size, u32 num_secs)
+{
+	u8 *pdst = (u8 *)dst;
+	u8 *psrc = (u8 *)src;
+
+	for (u32 i = 0; i < num_secs; i++)
+		if (!se_aes_xts_crypt_sec_old(tweak_ks, crypt_ks, enc, sec + i, pdst + sec_size * i, psrc + sec_size * i, sec_size))
+			return 0;
+
+	return 1;
+}

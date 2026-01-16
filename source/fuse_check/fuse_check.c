@@ -187,7 +187,7 @@ static u8 get_burnt_fuses() {
 }
 
 u8 get_required_fuses(u8 major, u8 minor) {
-	for (int i = 0; i < sizeof(fuse_info) / sizeof(fuse_info_t); i++) {
+	for (size_t i = 0; i < sizeof(fuse_info) / sizeof(fuse_info_t); i++) {
 		if (major >= fuse_info[i].major_min && major <= fuse_info[i].major_max) {
 			if (major > fuse_info[i].major_min || minor >= fuse_info[i].minor_min) {
 				if (major < fuse_info[i].major_max || minor <= fuse_info[i].minor_max) {
@@ -206,7 +206,7 @@ u8 get_required_fuses(u8 major, u8 minor) {
 
 static int get_burnt_fuses_idx(u8 burnt_fuses) {
 	bool is_dev = fuse_read_hw_state() == FUSE_NX_HW_STATE_DEV;
-	for (int i = 0; i < sizeof(fuse_info) / sizeof(fuse_info_t); i++) {
+	for (size_t i = 0; i < sizeof(fuse_info) / sizeof(fuse_info_t); i++) {
 		if (is_dev) {
 			if (fuse_info[i].dev_fuses == burnt_fuses) {
 				return i;
