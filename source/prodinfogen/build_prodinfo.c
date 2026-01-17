@@ -257,9 +257,9 @@ static bool _read_donor_prodinfo(imported_parts_t* output, const char* donor_pro
 void build_prodinfo(const char* optional_donor_filename, bool end_with_key_press) {
 	minerva_change_freq(FREQ_1600);
 
-	display_backlight_brightness(h_cfg.backlight, 1000);
-	gfx_clear_grey(0x1B);
-	gfx_con_setpos(0, 0);
+	// display_backlight_brightness(h_cfg.backlight, 1000);
+	// gfx_clear_grey(0x1B);
+	// gfx_con_setpos(0, 0);
 
 	log_printf(LOG_INFO, LOG_MSG_PRODINFOGEN_BEGIN);
 	gfx_printf("\n\n");
