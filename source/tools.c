@@ -1285,95 +1285,64 @@ int save_fb_to_bmp(const char* filename)
 	return res;
 }
 
-static void *coreboot_addr;
-
-static void reloc_patcher(u32 payload_dst, u32 payload_src, u32 payload_size) {
+static void _reloc_append(u32 payload_dst, u32 payload_src, u32 payload_size)
+{
 	memcpy((u8 *)payload_src, (u8 *)IPL_LOAD_ADDR, PATCHED_RELOC_SZ);
 
-	reloc_meta_t *relocator = (reloc_meta_t *)(payload_src + RELOC_META_OFF);
+	volatile reloc_meta_t *relocator = (reloc_meta_t *)(payload_src + RELOC_META_OFF);
 
 	relocator->start = payload_dst - ALIGN(PATCHED_RELOC_SZ, 0x10);
 	relocator->stack = PATCHED_RELOC_STACK;
 	relocator->end   = payload_dst + payload_size;
 	relocator->ep    = payload_dst;
-
-	if (payload_size == 0x7000) {
-		memcpy((u8 *)(payload_src + ALIGN(PATCHED_RELOC_SZ, 0x10)), coreboot_addr, 0x7000); //Bootblock
-		*(vu32 *)CBFS_DRAM_EN_ADDR = CBFS_DRAM_MAGIC;
-	}
 }
 
-int launch_payload(char *path, bool clear_screen) {
+void launch_payload(char *path, bool clear_screen)
+{
 	if (clear_screen)
 		gfx_clear_grey(0x1B);
 	gfx_con_setpos(0, 0);
-	if (!path)
-		return 1;
 
-	if (sd_mount()) {
-		FIL fp;
-		if (f_open(&fp, path, FA_READ)) {
-			gfx_con.mute = false;
-			EPRINTFARGS("Payload file is missing!\n(%s)", path);
+	// Read payload.
+	u32 size = 0;
+	void *buf = sd_file_read(path, &size);
+	if (!buf)
+	{
+		gfx_con.mute = false;
+		EPRINTFARGS("Payload file is missing!\n(%s)", path);
 
-			goto out;
-		}
-
-		// Read and copy the payload to our chosen address
-		void *buf;
-		u32 size = f_size(&fp);
-
-		if (size < 0x30000)
-			buf = (void *)RCM_PAYLOAD_ADDR;
-		else {
-			coreboot_addr = (void *)(COREBOOT_END_ADDR - size);
-			buf = coreboot_addr;
-			if (h_cfg.t210b01) {
-				f_close(&fp);
-
-				gfx_con.mute = false;
-				EPRINTF("Coreboot not allowed on Mariko!");
-
-				goto out;
-			}
-		}
-
-		if (f_read(&fp, buf, size, NULL)) {
-			f_close(&fp);
-
-			goto out;
-		}
-
-		f_close(&fp);
-
-		sd_end();
-
-		if (size < 0x30000) {
-			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, ALIGN(size, 0x10));
-
-			hw_deinit(false, byte_swap_32(*(u32 *)(buf + size - sizeof(u32))));
-		} else {
-			reloc_patcher(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, 0x7000);
-
-			// Get coreboot seamless display magic.
-			u32 magic = 0;
-			char *magic_ptr = buf + COREBOOT_VER_OFF;
-			memcpy(&magic, magic_ptr + strlen(magic_ptr) - 4, 4);
-			hw_deinit(true, magic);
-		}
-
-		// Some cards (Sandisk U1), do not like a fast power cycle. Wait min 100ms.
-		sdmmc_storage_init_wait_sd();
-
-		void (*ext_payload_ptr)() = (void *)EXT_PAYLOAD_ADDR;
-
-		// Launch our payload.
-		(*ext_payload_ptr)();
+		goto out;
 	}
 
-out:
+	// Check if it safely fits IRAM.
+	if (size > 0x30000)
+	{
+		gfx_con.mute = false;
+		EPRINTF("Payload is too big!");
+
+		goto out;
+	}
+
 	sd_end();
-	return 1;
+
+	// Copy the payload to our chosen address.
+	memcpy((void *)RCM_PAYLOAD_ADDR, buf, size);
+
+	// Append relocator or set config.
+	void (*payload_ptr)();
+	_reloc_append(PATCHED_RELOC_ENTRY, EXT_PAYLOAD_ADDR, ALIGN(size, 0x10));
+
+	payload_ptr = (void *)EXT_PAYLOAD_ADDR;
+
+	hw_deinit(false, byte_swap_32(*(u32 *)(buf + size - sizeof(u32))));
+
+	// Launch our payload.
+	(*payload_ptr)();
+
+out:
+	free(buf);
+	gfx_con.mute = false;
+	EPRINTF("Failed to launch payload!");
 }
 
 void auto_reboot() {

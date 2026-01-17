@@ -8,10 +8,6 @@
 #define PATCHED_RELOC_ENTRY 0x40010000
 #define EXT_PAYLOAD_ADDR    0xC0000000
 #define RCM_PAYLOAD_ADDR    (EXT_PAYLOAD_ADDR + ALIGN(PATCHED_RELOC_SZ, 0x10))
-#define COREBOOT_END_ADDR   0xD0000000
-#define COREBOOT_VER_OFF    0x41
-#define CBFS_DRAM_EN_ADDR   0x4003e000
-#define  CBFS_DRAM_MAGIC    0x4452414D // "DRAM"
 
 #include "config.h"
 
@@ -125,7 +121,7 @@ void build_emunand_list();
 void select_and_apply_emunand();
 void emunand_list_free();
 int save_fb_to_bmp(const char* filename);
-int launch_payload(char *path, bool clear_screen);
+void launch_payload(char *path, bool clear_screen);
 void auto_reboot();
 void DumpFw();
 
