@@ -322,7 +322,7 @@ void nx_emmc_bis_init(emmc_part_t *part, bool enable_cache, u32 emummc_offset)
 		system_part = NULL;
 }
 
-void nx_emmc_bis_finalize()
+void nx_emmc_bis_end()
 {
 	_nx_emmc_bis_flush_cache();
 	system_part = NULL;

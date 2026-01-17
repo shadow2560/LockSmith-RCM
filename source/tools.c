@@ -387,7 +387,7 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 			u32 magic;
 			if (!nx_emmc_bis_read(0, 1, sector)) {
 				log_printf(LOG_ERR, LOG_MSG_ERROR_PRODINFO_READ);
-				nx_emmc_bis_finalize();
+				nx_emmc_bis_end();
 				emmc_gpt_free(gpt);
 				list_init(gpt);
 				emummc_storage_end();
@@ -397,7 +397,7 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 			magic = *(u32 *)(sector + 0x0); // 0x0 is the offset of the CAL0 magic
 			if (magic != MAGIC_CAL0) {
 				log_printf(LOG_ERR, LOG_MSG_ERROR_PRODINFO_MAGIC_READ);
-				nx_emmc_bis_finalize();
+				nx_emmc_bis_end();
 				emmc_gpt_free(gpt);
 				list_init(gpt);
 				emummc_storage_end();
@@ -410,7 +410,7 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 			if (test_mount) {
 				log_printf(LOG_ERR, LOG_MSG_ERR_MOUNT_PARTITION, part_name);
 				debug_log_write("Failed to mounte partition, error %d.\n", (u32) test_mount);
-				nx_emmc_bis_finalize();
+				nx_emmc_bis_end();
 				emmc_gpt_free(gpt);
 				list_init(gpt);
 				emummc_storage_end();
@@ -440,7 +440,7 @@ void unmount_nand_part(link_t *gpt, bool is_boot_part, bool is_bis, bool nand_cl
 	}
 	if (!is_boot_part) {
 		if (is_bis) {
-			nx_emmc_bis_finalize();
+			nx_emmc_bis_end();
 		}
 		if (gpt != NULL) {
 			emmc_gpt_free(gpt);
