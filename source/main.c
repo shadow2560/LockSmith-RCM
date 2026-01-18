@@ -364,8 +364,6 @@ static void dump_mariko_partial_keys() {
 			gfx_printf("\n%kPress a button to shutdown the console.", COLOR_ORANGE);
 			btn_wait();
 			power_set_state(POWER_OFF_RESET);
-			while (true)
-				bpmp_halt();
 		}
 	}
 }
