@@ -431,6 +431,7 @@ static void dump_prodinfo() {
 		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
 	}
 	flash_or_dump_part(false, path, "PRODINFO", false);
+	save_screenshot_and_go_back("dump_prodinfo");
 }
 
 static void restore_prodinfo() {
@@ -446,6 +447,7 @@ static void restore_prodinfo() {
 		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
 	}
 	flash_or_dump_part(true, path, "PRODINFO", false);
+	save_screenshot_and_go_back("restore_prodinfo");
 }
 
 static void apply_incognito() {

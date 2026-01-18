@@ -1429,26 +1429,36 @@ void DumpFw() {
 	cls();
 	char sysPath[25 + 36 + 3 + 1]; // 24 for "bis:/Contents/registered", 36 for ncaName.nca, 3 for /00, and 1 to make sure :)
 	char *baseSdPath;
+	int res = 0;
 
 	log_printf(LOG_INFO, LOG_MSG_DUMP_FW_BEGIN);
 
 	u32 timer = get_tmr_s();
 
-	if (!sd_mount())
+	if (!sd_mount()) {
+		res = 1;
+		goto out;
 		return;
+	}
 
-	if (!bis_loaded)
+	if (!bis_loaded) {
+		res = 1;
+		goto out;
 		return;
+	}
 
 	const pkg1_id_t *pkg1_id;
 	u8 *pkg1 = _read_pkg1(&pkg1_id);
 	if (!pkg1) {
+		res = 1;
+		goto out;
 		return;
 	}
 
 	LIST_INIT(gpt);
 	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
 		free(pkg1);
+		save_screenshot_and_go_back("fw_dump");
 		return;
 	}
 
@@ -1487,13 +1497,13 @@ void DumpFw() {
 		log_printf(LOG_ERR, LOG_MSG_ERR_OPEN_FOLDER, bis_fw_dir_path);
 		free(baseSdPath);
 		unmount_nand_part(&gpt, false, true, true, true);
+		save_screenshot_and_go_back("fw_dump");
 		return;
 	}
 
 	gfx_printf("Starting dump...\n");
 	SETCOLOR(COLOR_GREEN, COLOR_DEFAULT);
 
-	int res = 0;
 	int total = 1;
 	while(f_readdir(&dir, &fno)) {
 		char name[256 + 1];
@@ -1528,6 +1538,7 @@ void DumpFw() {
 	f_closedir(&dir);
 	RESETCOLOR;
 
+out:
 	if (res) {
 		gfx_printf("\n");
 		log_printf(LOG_ERR, LOG_MSG_DUMP_FW_ERROR);

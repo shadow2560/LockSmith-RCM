@@ -173,12 +173,12 @@ bool incognito()
 
 	validateChecksums(NULL);
 
-	gfx_printf("%kWriting fake serial...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting fake serial...\n", COLOR_YELLOW);
 	if (!writeSerial()) {
 		goto out;
 	}
 /*
-	gfx_printf("%kErasing ECC-B233 device cert...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing ECC-B233 device cert...\n", COLOR_YELLOW);
 	if (!erase(0x0480, 0x180)) {
 		goto out;
 	}
@@ -187,69 +187,72 @@ bool incognito()
 		goto out;
 	}
 */
-	gfx_printf("%kErasing SSL cert...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing SSL cert...\n", COLOR_YELLOW);
 	if (!erase(0x0AE0, 0x800)) {
 		goto out;
 	}
 
-	gfx_printf("%kErasing extended SSL key...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing extended SSL key...\n", COLOR_YELLOW);
 	if (!erase(0x3AE0, 0x130)) {
 		goto out;
 	}
 
-	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x3AE0, 0x13E)) {
 		goto out;
 	}
 
-	gfx_printf("%kErasing Amiibo ECDSA cert...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing Amiibo ECDSA cert...\n", COLOR_YELLOW);
 	if (!erase(0x35A0, 0x070)) {
 		goto out;
 	}
 
-	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x35A0, 0x07E)) {
 		goto out;
 	}
 
-	gfx_printf("%kErasing Amiibo ECQV-BLS root cert...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing Amiibo ECQV-BLS root cert...\n", COLOR_YELLOW);
 	if (!erase(0x36A0, 0x090)) {
 		goto out;
 	}
 
-	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x36A0, 0x09E)) {
 		goto out;
 	}
 
 	/* Doesn't work for mariko
-	gfx_printf("%kErasing RSA-2048 extended device key...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing RSA-2048 extended device key...\n", COLOR_YELLOW);
 	if (!erase(0x3D70, 0x240)) { // seems empty & unused!
 		goto out;
 	}
 
-	gfx_printf("%kErasing RSA-2048 device certificate...\n", COLOR_YELLOW);
+	// gfx_printf("%kErasing RSA-2048 device certificate...\n", COLOR_YELLOW);
 	if (!erase(0x3FC0, 0x240)) { // seems empty & unused!
 		goto out;
 	}
 	*/
 
-	gfx_printf("%kWriting SSL cert hash...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting SSL cert hash...\n", COLOR_YELLOW);
 	if (!writeClientCertHash()) {
 		goto out;
 	}
 
-	gfx_printf("%kWriting body hash...\n", COLOR_YELLOW);
+	// gfx_printf("%kWriting body hash...\n", COLOR_YELLOW);
 	if (!writeCal0Hash()) {
 		goto out;
 	}
 
 	gfx_printf("\n%kIncognito done!\n", COLOR_GREEN);
 	unmount_nand_part(&gpt, false, true, true, false);
+	save_screenshot_and_go_back("incognito");
 	return true;
 
 out:
+	gfx_printf("\n%kIncognito error!\n", COLOR_RED);
 	unmount_nand_part(&gpt, false, true, true, false);
+	save_screenshot_and_go_back("incognito");
 	return false;
 }
 
