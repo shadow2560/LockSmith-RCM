@@ -86,7 +86,7 @@ extern power_state_t STATE_REBOOT_BYPASS_FUSES;
 #define SETCOLOR(fg, bg) gfx_con_setcol(fg, 1, bg)
 #define RESETCOLOR SETCOLOR(COLOR_WHITE, COLOR_DEFAULT)
 
-static const u32 colors[6] = {COLOR_CYAN_L, COLOR_TURQUOISE, COLOR_GREENISH, COLOR_SOFT_WHITE, COLOR_ORANGE, COLOR_WHITE};
+// static const u32 colors[6] = {COLOR_CYAN_L, COLOR_TURQUOISE, COLOR_GREENISH, COLOR_SOFT_WHITE, COLOR_ORANGE, COLOR_WHITE};
 
 #if DEBUG
 #define debug_log_start() debug_log_start_impl()

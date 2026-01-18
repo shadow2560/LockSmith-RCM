@@ -245,32 +245,26 @@ out:
 	btn_wait();
 }
 
-static void launch_hekate()
-{
+static void launch_hekate() {
 	sd_mount();
 	if (!f_stat("bootloader/update.bin", NULL))
 		launch_payload("bootloader/update.bin", false);
-	else
-	{
-		gfx_clear_grey(0x1B);
-		gfx_con_setpos(0, 0);
+	else {
+		cls();
 		EPRINTF("bootloader/update.bin not found!");
-		gfx_printf("\n%kPress any button to return to menu.", colors[0]);
+		gfx_printf("\nPress any button to return to menu.");
 		btn_wait();
 	}
 }
 
-static void launch_reboot_payload()
-{
+static void launch_reboot_payload() {
 	sd_mount();
 	if (!f_stat("payload.bin", NULL))
 		launch_payload("payload.bin", false);
-	else
-	{
-		gfx_clear_grey(0x1B);
-		gfx_con_setpos(0, 0);
+	else {
+		cls();
 		EPRINTF("payload.bin not found on SD root!");
-		gfx_printf("\n%kPress any button to return to menu.", colors[0]);
+		gfx_printf("\nPress any button to return to menu.");
 		btn_wait();
 	}
 }
@@ -354,12 +348,12 @@ static void dump_mariko_partial_keys() {
 	gfx_printf("%kPress \"vol+\" to launch the dump or any other keys to cancel.\n", COLOR_WHITE);
 	*/
 	gfx_printf("%kThis dumps the results of writing zeros over consecutive 32-bit portions of each keyslot, the results of which can then be bruteforced quickly on a computer to recover keys from unreadable keyslots.\n\n \
-		%kThis includes the Mariko KEK and BEK as well as the unique SBK.\n\n \
-	%kThese are not useful for most users but are included for archival purposes.\n\n \
+		This includes the Mariko KEK and BEK as well as the unique SBK.\n\n \
+	These are not useful for most users but are included for archival purposes.\n\n \
 		%kWarning: this wipes keyslots!\n \
 		The console must be completely restarted!\n \
 		Modchip must run again to fix the keys!\n\n \
-	%kPress \"vol+\" to launch the dump or any other keys to cancel.\n", colors[1], colors[2], colors[3], colors[4], COLOR_WHITE);
+	%kPress \"vol+\" to launch the dump or any other keys to cancel.\n", COLOR_TURQUOISE, COLOR_ORANGE, COLOR_WHITE);
 	if (!wait_vol_plus()) {
 		return;
 	}
