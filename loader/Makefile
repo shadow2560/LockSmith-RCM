@@ -44,6 +44,8 @@ all: $(TARGET).bin $(TOOLSLZ) $(TOOLSB2C)
 
 clean:
 	@rm -rf $(OBJS)
+	@rm -f payload_00.h
+	@rm -f payload_01.h
 
 $(TARGET).bin: $(BUILDDIR)/$(TARGET)/$(TARGET).elf
 	@$(OBJCOPY) -S -O binary $< $(OUTPUTDIR)/$(PAYLOAD_NAME).bin
