@@ -11,7 +11,7 @@ Don't remove the SD during execution of the payload, if you want to change SD sh
 Copy Hekate's minerva module in "bootloader/sys/libsys_minerva.bso", already in place if you have installed Hekate. If you don't do it the payload will be slower than if you do it.
 
 ## Functionnalities
-This payload, largely based on [Hekate](https://github.com/CTCaer/hekate), it BDK, [TegraExplorer](https://github.com/suchmememanyskill/TegraExplorer) and Lockpick-RCM, can do a lot of things:
+This payload, largely based on [Hekate](https://github.com/CTCaer/hekate), it BDK, [TegraExplorer](https://github.com/suchmememanyskill/TegraExplorer), Lockpick-RCM and Incognito-RCM can do a lot of things:
 * Work on most configs than before for each project based on Lockpick-RCM included (all witch work on or with the nand)
 * Work on emunand (Atmosphere's one in "emummc/emummc.ini" or those configure in Hekate's configs with the var "emupath") or sysnand
 * Launch almost functions when flags files are founded, in this case the menu will not display and the reboot will be done on "payload.bin", "bootloader/update.bin" or "atmosphere/reboot_to_payload.bin". At the end a log will be displayed to show up what has been done and the log file will be saved to "LockSmith-RCM/log.txt" on the SD. Flag files are removed if the function has been executed.
