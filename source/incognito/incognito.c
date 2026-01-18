@@ -155,8 +155,7 @@ bool incognito()
 	/*
 	void* cal0_buf;
 	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 	nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)cal0_buf;
 	*/
@@ -167,8 +166,7 @@ bool incognito()
 	{
 		gfx_printf("%kI'm sorry Dave, I'm afraid I can't do that..\n%kWill make a backup first...\n", COLOR_RED, COLOR_YELLOW);
 		if (!backupProdinfo()) {
-			unmount_nand_part(&gpt, false, true, true, false);
-			return false;
+			goto out;
 		}
 	}
 	*/
@@ -177,90 +175,82 @@ bool incognito()
 
 	gfx_printf("%kWriting fake serial...\n", COLOR_YELLOW);
 	if (!writeSerial()) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 /*
 	gfx_printf("%kErasing ECC-B233 device cert...\n", COLOR_YELLOW);
 	if (!erase(0x0480, 0x180)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	if (!calculateAndWriteCrc(0x0480, 0x18E)) { // whatever I do here, it crashes Atmos..?
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 */
 	gfx_printf("%kErasing SSL cert...\n", COLOR_YELLOW);
 	if (!erase(0x0AE0, 0x800)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kErasing extended SSL key...\n", COLOR_YELLOW);
 	if (!erase(0x3AE0, 0x130)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x3AE0, 0x13E)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kErasing Amiibo ECDSA cert...\n", COLOR_YELLOW);
 	if (!erase(0x35A0, 0x070)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x35A0, 0x07E)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kErasing Amiibo ECQV-BLS root cert...\n", COLOR_YELLOW);
 	if (!erase(0x36A0, 0x090)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
 	if (!calculateAndWriteCrc(0x36A0, 0x09E)) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
+	/* Doesn't work for mariko
 	gfx_printf("%kErasing RSA-2048 extended device key...\n", COLOR_YELLOW);
 	if (!erase(0x3D70, 0x240)) { // seems empty & unused!
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kErasing RSA-2048 device certificate...\n", COLOR_YELLOW);
 	if (!erase(0x3FC0, 0x240)) { // seems empty & unused!
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
+	*/
 
 	gfx_printf("%kWriting SSL cert hash...\n", COLOR_YELLOW);
 	if (!writeClientCertHash()) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("%kWriting body hash...\n", COLOR_YELLOW);
 	if (!writeCal0Hash()) {
-		unmount_nand_part(&gpt, false, true, true, false);
-		return false;
+		goto out;
 	}
 
 	gfx_printf("\n%kIncognito done!\n", COLOR_GREEN);
 	unmount_nand_part(&gpt, false, true, true, false);
 	return true;
+
+out:
+	unmount_nand_part(&gpt, false, true, true, false);
+	return false;
 }
 
 u32 divideCeil(u32 x, u32 y)
