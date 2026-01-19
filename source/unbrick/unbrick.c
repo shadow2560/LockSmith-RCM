@@ -153,7 +153,7 @@ unmount_nand_part(&gpt, false, true, true, true);
 
 void wip_nand() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_WIP_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "wip");
 	if (!bis_loaded && !wait_vol_plus()) {
 		return;
 	}
@@ -232,7 +232,7 @@ unmount_nand_part(&	gpt, false, true, true, true);
 
 void fix_downgrade() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_DG_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "downgrade fix");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -246,7 +246,7 @@ void del_erpt_save() {
 	if (!called_from_config_files) {
 		gfx_printf("%kVery dangerous operation, all your installed game will not launch after that so do it only if someone told you to do it.\n", COLOR_RED);
 	}
-	log_printf(LOG_INFO, LOG_MSG_RM_ERPT_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "ERPT deletion");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -257,7 +257,7 @@ void del_erpt_save() {
 
 void remove_parental_control() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_RM_PARENTAL_CONTROL_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "parental control deletion");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -274,7 +274,7 @@ void sync_joycons_between_nands() {
 			%kIf you use 90DNS or any other DNS setting, please switch to airplane mode on the two nands cause this script will copy also the wifi settings from your source nand to the dest nand.\n\n \
 			Also note that some of your dest nand settings will be overwritten, such as the theme, so check the parameters of the ddest nand after the execution of this script.\n\n", COLOR_RED);
 	}
-	log_printf(LOG_INFO, LOG_MSG_SYNCH_JOYCONS_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "joycons synchronization");
 	if (!wait_vol_plus()) {
 		return;
 	}

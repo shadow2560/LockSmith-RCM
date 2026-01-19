@@ -3,11 +3,7 @@
 
 #include <utils/types.h>
 #include <gfx_utils.h>
-#include "../gfx/messages.h"
-
-extern const char *g_log_messages[LOG_MSG_COUNT];
-extern log_entry_t* g_log_buf;
-extern u32 g_log_count;
+#include "messages.h"
 
 typedef struct {
 	u16 index;       // index dans g_log_buf[]

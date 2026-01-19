@@ -1,8 +1,8 @@
 .vs
 .vscode
 build/*
+dev/*
 output/*
-te/*
 loader/payload_00.h
 loader/payload_01.h
 tools/bin2c/bin2c

@@ -8,7 +8,7 @@
 #include <utils/sprintf.h>
 #include <utils/types.h>
 
-const char *g_log_messages[LOG_MSG_COUNT] = {
+const char * const g_log_messages[LOG_MSG_COUNT] = {
 	[LOG_MSG_malloc_error]   = "Error when allocating memory",
 	[LOG_MSG_BIS_VIA_CONSOLE]   = "Bis keys from console used",
 	[LOG_MSG_BIS_VIA_FILE]   = "Bis keys from file used",
@@ -66,24 +66,15 @@ const char *g_log_messages[LOG_MSG_COUNT] = {
 	[LOG_MSG_BATCH_BEGIN]   = "Batch Begin",
 	[LOG_MSG_NEXT_BATCH_ON_SYSNAND]   = "Next function will be on sysnand",
 	[LOG_MSG_NEXT_BATCH_ON_EMUNAND]   = "Next function will be on emunand",
-	[LOG_MSG_UNBRICK_BEGIN]   = "Press \"vol+\" to launch the unbrick process or any other keys to cancel.",
-	[LOG_MSG_UNBRICK_AND_WIP_BEGIN]   = "Press \"vol+\" to launch the unbrick and wip process or any other keys to cancel.",
+	[LOG_MSG_FNC_BEGIN]   = "Press \"vol+\" to launch the %s process or any other keys to cancel.",
 	[LOG_MSG_UNBRICK_FOLDER_ERROR]   = "Folders and files for unbrick are missing, can't continue.",
 	[LOG_MSG_UNBRICK_SUCCESS] = "Unbrick done",
 	[LOG_MSG_UNBRICK_AND_WIP_SUCCESS] = "Unbrick and wip done",
-	[LOG_MSG_WIP_BEGIN] = "Press \"vol+\" to launch the wip process or any other keys to cancel.",
 	[LOG_MSG_WIP_SUCCESS] = "Wip done",
-	[LOG_MSG_DG_BEGIN] = "Press \"vol+\" to launch the downgrade fix process or any other keys to cancel.",
 	[LOG_MSG_DG_SUCCESS] = "Downgrade fix done",
-	[LOG_MSG_RM_ERPT_BEGIN] = "Press \"vol+\" to launch the ERPT deletion process or any other keys to cancel.",
 	[LOG_MSG_RM_ERPT_SUCCESS] = "ERPT deletion done",
-	[LOG_MSG_RM_PARENTAL_CONTROL_BEGIN] = "Press \"vol+\" to launch the parental control deletion process or any other keys to cancel.",
 	[LOG_MSG_RM_PARENTAL_CONTROL_SUCCESS] = "Parental control deletion done",
-	[LOG_MSG_SYNCH_JOYCONS_BEGIN] = "Press \"vol+\" to launch the synchronization of joycons process or any other keys to cancel.",
 	[LOG_MSG_SYNCH_JOYCONS_SUCCESS] = "synchronization of joycons done",
-	[LOG_MSG_RESTORE_PRODINFO_BEGIN]   = "Press \"vol+\" to launch the restore PRODINFO process or any other keys to cancel.",
-	[LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_SCRATCH_BEGIN]   = "Press \"vol+\" to launch the build and flash of scratch PRODINFO process or any other keys to cancel.",
-	[LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_DONOR_BEGIN]   = "Press \"vol+\" to launch the build and flash of donor PRODINFO process or any other keys to cancel.",
 	[LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_SCRATCH_SUCCESS]   = "Build and flash of scratch PRODINFO done",
 	[LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_DONOR_SUCCESS]   = "Build and flash of donor PRODINFO done",
 	[LOG_MSG_PRODINFOGEN_BEGIN]   = "ProdinfoGen begin",
@@ -140,7 +131,6 @@ const char *g_log_messages[LOG_MSG_COUNT] = {
 	[LOG_MSG_DUMP_FW_BEGIN]   = "Firmware dump begin...",
 	[LOG_MSG_DUMP_FW_ERROR]   = "Error during firmware dump",
 	[LOG_MSG_DUMP_FW_END]   = "Firmware dump done in %ds",
-	[LOG_MSG_INCOGNITO_BEGIN]   = "Press \"vol+\" to launch the Incognito apply process or any other keys to cancel.",
 	[LOG_MSG_BATCH_END]     = "Batch end"
 };
 

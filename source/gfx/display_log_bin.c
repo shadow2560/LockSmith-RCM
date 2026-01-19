@@ -10,7 +10,6 @@
 #include <utils/types.h>
 
 #include "../tools.h"
-#include "messages.h"
 
 static u32 log_color_from_level(u8 lvl) {
 	switch (lvl) {

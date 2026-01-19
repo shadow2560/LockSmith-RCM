@@ -385,7 +385,7 @@ static void build_prodinfo_from_donor() {
 static void build_and_flash_prodinfo_from_scratch() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_SCRATCH_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of scratch PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -396,7 +396,7 @@ static void build_and_flash_prodinfo_from_scratch() {
 static void build_and_flash_prodinfo_from_donor() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_PRODINFO_BUILD_AND_FLASH_FROM_DONOR_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of donor PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -406,7 +406,7 @@ static void build_and_flash_prodinfo_from_donor() {
 
 static void emmchacgen_package_flash() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_UNBRICK_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -415,7 +415,7 @@ static void emmchacgen_package_flash() {
 
 static void emmchacgen_package_flash_with_wip() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_UNBRICK_AND_WIP_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick and wip");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -436,7 +436,7 @@ static void dump_prodinfo() {
 
 static void restore_prodinfo() {
 	cls();
-		log_printf(LOG_INFO, LOG_MSG_RESTORE_PRODINFO_BEGIN);
+		log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "restore PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -453,7 +453,7 @@ static void restore_prodinfo() {
 static void apply_incognito() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_INCOGNITO_BEGIN);
+	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "Incognito apply");
 	if (!wait_vol_plus()) {
 		return;
 	}

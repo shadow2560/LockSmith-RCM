@@ -516,7 +516,7 @@ unmount_nand_part(&gpt, false, true, true, true);
 }
 
 static ui_pos_t spinner_pos;
-static int spinner_timer_count = 0;
+static u32 spinner_timer_count = 0;
 static bool spinner_visible = false;
 void ui_spinner_begin() {
 	gfx_con_getpos(&spinner_pos.x, &spinner_pos.y);
@@ -525,12 +525,9 @@ void ui_spinner_begin() {
 	
 }
 
-void ui_spinner_draw(int pass_count) {
-	if (spinner_timer_count != pass_count) {
-		spinner_timer_count++;
+void ui_spinner_draw() {
+	if (get_tmr_ms() < spinner_timer_count) {
 		return;
-	} else {
-		spinner_timer_count = 0;
 	}
 	const char spin_chars[] = "-";
 
@@ -543,6 +540,7 @@ void ui_spinner_draw(int pass_count) {
 		spinner_visible = true;
 	}
 	gfx_con_setpos(spinner_pos.x, spinner_pos.y);
+	spinner_timer_count = get_tmr_ms() + 500;
 }
 
 void ui_spinner_clear() {
@@ -689,7 +687,7 @@ bool return_value = false;
 
 	ui_spinner_begin();
 	while (totalSectorsSrc > 0){
-		ui_spinner_draw(1);
+		ui_spinner_draw();
 		int Res = 0;
 		u32 num = MIN(totalSectorsSrc, COPY_BUF_SIZE / EMMC_BLOCKSIZE);
 
@@ -1035,7 +1033,7 @@ FRESULT f_copy(const char *src, const char *dst, BYTE *buf)
 
 	ui_spinner_begin();
 	do {
-		ui_spinner_draw(1);
+		ui_spinner_draw();
 		fr = f_read(&fs, buf, COPY_BUF_SIZE, &r);
 		if (fr != FR_OK) {
 			log_printf(LOG_ERR, LOG_MSG_ERR_FILE_READ);
@@ -1428,8 +1426,9 @@ static ALWAYS_INLINE u8 *_read_pkg1(const pkg1_id_t **pkg1_id) {
 void DumpFw() {
 	cls();
 	char sysPath[25 + 36 + 3 + 1]; // 24 for "bis:/Contents/registered", 36 for ncaName.nca, 3 for /00, and 1 to make sure :)
-	char *baseSdPath;
 	int res = 0;
+	char *baseSdPath;
+	baseSdPath = malloc(36 + 16);
 
 	log_printf(LOG_INFO, LOG_MSG_DUMP_FW_BEGIN);
 
@@ -1458,11 +1457,11 @@ void DumpFw() {
 	LIST_INIT(gpt);
 	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
 		free(pkg1);
+		free(baseSdPath);
 		save_screenshot_and_go_back("fw_dump");
 		return;
 	}
 
-	baseSdPath = malloc(36 + 16);
 	s_printf(baseSdPath, "sd:/LockSmith-RCM/Firmware/%d (%s)", (u8)pkg1_id->kb, pkg1_id->id);
 	int baseSdPathLen = strlen(baseSdPath);
 
