@@ -18,6 +18,7 @@
 #include <utils/sprintf.h>
 
 #include "../tools.h"
+#include "../gfx/messages.h"
 
 const int entries_per_page = 15;
 
@@ -61,9 +62,15 @@ typedef struct {
 	u8 major;
 	u8 minor;
 	u8 patch;
-	const char *nca;
+	u8 nca_id[16];
 } nca_map_t;
 
+// Generated at build-time by tools/pack_assets into the build output directory.
+// The header is added to the include path by the top-level Makefile.
+#include "fuse_nca_packed.h"
+
+#if 0
+// Source-of-truth list for pack_assets (not compiled into the payload).
 static const nca_map_t nca_db[] = {
 	{21, 2, 0, "ac1ef488027ac5d9222d74393f03507f.nca"},
 	{21, 1, 0, "738da79326689ef4b72f702693bfc48a.nca"},
@@ -168,6 +175,8 @@ static const nca_map_t nca_db[] = {
 	{1, 0, 0, "a1b287e07f8455e8192f13d0e45a2aaf.nca"},
 };
 
+#endif
+
 static u8 get_burnt_fuses() {
 	u8 fuse_count = 0;
 	u32 fuse_odm6 = fuse_read_odm(6);
@@ -227,8 +236,29 @@ static bool match_nca_filename(
 	u8 *out_patch
 )
 {
+	// Expected format: 32 hex chars + ".nca"
+	// Convert the first 32 hex chars to 16 bytes and compare against the packed DB.
+	u8 id[16];
+	if (!fname)
+		return false;
+
+	// Quick validation.
+	size_t len = strlen(fname);
+	if (len < 36 || strcmp(fname + len - 4, ".nca") != 0)
+		return false;
+
+	for (int i = 0; i < 16; i++) {
+		int hi = fname[i * 2];
+		int lo = fname[i * 2 + 1];
+		hi = (hi >= '0' && hi <= '9') ? (hi - '0') : ((hi | 32) - 'a' + 10);
+		lo = (lo >= '0' && lo <= '9') ? (lo - '0') : ((lo | 32) - 'a' + 10);
+		if ((unsigned)hi > 15U || (unsigned)lo > 15U)
+			return false;
+		id[i] = (u8)((hi << 4) | lo);
+	}
+
 	for (size_t i = 0; i < (sizeof(nca_db) / sizeof(nca_db[0])); i++) {
-		if (strcmp(fname, nca_db[i].nca) == 0) {
+		if (memcmp(id, nca_db[i].nca_id, 16) == 0) {
 			*out_major = nca_db[i].major;
 			*out_minor = nca_db[i].minor;
 			*out_patch = nca_db[i].patch;
@@ -239,7 +269,7 @@ static bool match_nca_filename(
 }
 
 // Detect firmware from SystemVersion NCA in SYSTEM partition
-static bool detect_firmware_from_nca(u8 *major, u8 *minor, u8 *patch)
+bool detect_firmware_from_nca(u8 *major, u8 *minor, u8 *patch)
 {
 	LIST_INIT(gpt);
 
@@ -282,76 +312,54 @@ void show_fuse_check(u8 burnt_fuses, u8 fw_major, u8 fw_minor, u8 fw_patch, u8 r
 
 	// Title
 	SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-	print_centered(40, "NINTENDO SWITCH FUSE CHECKER");
+	gfx_con_setpos(136, 40);
+	// print_centered(40, "NINTENDO SWITCH FUSE CHECKER");
+	log_printf(true, LOG_INFO, LOG_MSG_FUSE_CHECK_TITLE);
 
 	// System Information - single line
 	gfx_con_setpos(100, 150);
-	SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-	gfx_printf("Firmware: ");
-	SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-	gfx_printf("%d.%d.%d", fw_major, fw_minor, fw_patch);
+	log_printf(true, LOG_INFO, LOG_MSG_FUSE_CHECK_FW, fw_major, fw_minor, fw_patch);
 
 	gfx_con_setpos(100, 200);
-	SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-	gfx_printf("Burnt Fuses: ");
-	SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-	gfx_printf("%d", burnt_fuses);
+	log_printf(true, LOG_INFO, LOG_MSG_FUSE_CHECK_BURNT_FUSES, burnt_fuses);
 
 	gfx_con_setpos(100, 250);
-	SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-	gfx_printf("Required Fuses: ");
-	SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-	gfx_printf("%d", required_fuses);
+	log_printf(true, LOG_INFO, LOG_MSG_FUSE_CHECK_REQUIRED_FUSES, required_fuses);
 
 	// Status - large and clear
 	gfx_con_setpos(100, 350);
 	if (burnt_fuses < required_fuses) {
-		SETCOLOR(COLOR_RED, COLOR_DEFAULT);
-		gfx_puts("STATUS: CRITICAL ERROR");
+		log_printf(true, LOG_WARN, LOG_MSG_FUSE_CHECK_STATUS_UNDERBURNT_1);
 
 		gfx_con_setpos(100, 400);
-		SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-		gfx_printf("Missing %d fuse(s) - OFW WILL NOT BOOT!", required_fuses - burnt_fuses);
-
-		gfx_con_setpos(100, 450);
-		gfx_puts("System will black screen on OFW boot");
+		log_printf(true, LOG_WARN, LOG_MSG_FUSE_CHECK_STATUS_UNDERBURNT_2, required_fuses - burnt_fuses);
 
 		gfx_con_setpos(100, 520);
-		SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-		gfx_puts("What will work: CFW (Atmosphere), Semi-stock (Hekate nogc)");
+		log_printf(true, LOG_OK, LOG_MSG_FUSE_CHECK_STATUS_UNDERBURNT_3);
 	} else if (burnt_fuses > required_fuses) {
-		SETCOLOR(COLOR_RED, COLOR_DEFAULT);
-		gfx_puts("STATUS: CRITICAL ERROR (OVERBURNT)");
+		log_printf(true, LOG_ERR, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_1);
 
 		gfx_con_setpos(100, 400);
-		SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-		gfx_printf("Extra %d fuse(s) burnt - OFW WILL NOT BOOT!", burnt_fuses - required_fuses);
+		log_printf(true, LOG_ERR, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_2, burnt_fuses - required_fuses);
 
 		gfx_con_setpos(100, 450);
-		gfx_puts("System will black screen on OFW boot");
+		log_printf(true, LOG_ERR, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_3);
 
 		gfx_con_setpos(100, 520);
-		SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-		gfx_puts("What will work: CFW (Atmosphere), Semi-stock (Hekate nogc)");
+		log_printf(true, LOG_OK, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_4);
 
 		gfx_con_setpos(100, 570);
-		SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
 		int fw_idx = get_burnt_fuses_idx(burnt_fuses);
 		if (fw_idx == -1) {
-			gfx_printf("No downgrade below any known firmware possible.");
+			log_printf(true, LOG_ERR, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_5);
 		} else {
-			gfx_printf("Cannot downgrade below FW %d.%d.x", fuse_info[fw_idx].major_min, fuse_info[fw_idx].minor_min);
+			log_printf(true, LOG_WARN, LOG_MSG_FUSE_CHECK_STATUS_OVERBURNT_6, fuse_info[fw_idx].major_min, fuse_info[fw_idx].minor_min);
 		}
 	} else {
-		SETCOLOR(COLOR_CYAN, COLOR_DEFAULT);
-		gfx_puts("STATUS: PERFECT MATCH");
+		log_printf(true, LOG_OK, LOG_MSG_FUSE_CHECK_STATUS_OK_1);
 
 		gfx_con_setpos(100, 400);
-		SETCOLOR(COLOR_WHITE, COLOR_DEFAULT);
-		gfx_puts("Exact fuse count match - OFW WILL BOOT NORMALLY");
-
-		gfx_con_setpos(100, 450);
-		gfx_puts("All systems operational");
+		log_printf(true, LOG_OK, LOG_MSG_FUSE_CHECK_STATUS_OK_2);
 	}
 
 	// Footer

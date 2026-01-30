@@ -59,7 +59,6 @@
 #include <string.h>
 
 static u32 _key_count = 0, _titlekey_count = 0;
-static u32 start_time, end_time;
 
 static void _save_key(const char *name, const void *data, u32 len, char *outbuf) {
 	if (!key_exists(data))
@@ -116,7 +115,7 @@ static void _derive_master_keys_from_latest_key(key_storage_t *keys, bool is_dev
 	load_aes_key(KS_AES_ECB, keys->temp_key, keys->master_key[0], is_dev ? master_key_vectors_dev[0] : master_key_vectors[0]);
 
 	if (key_exists(keys->temp_key)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_MASTER_KEYS, is_dev ? "dev" : "prod");
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_MASTER_KEYS, is_dev ? "dev" : "prod");
 		memset(keys->master_key, 0, sizeof(keys->master_key));
 	}
 }
@@ -138,7 +137,7 @@ static void _derive_keyblob_keys(key_storage_t *keys) {
 	if (!emmc_storage.initialized) {
 		have_keyblobs = false;
 	} else if (!emummc_storage_read(KEYBLOB_OFFSET / EMMC_BLOCKSIZE, KB_FIRMWARE_VERSION_600 + 1, keyblob_buffer)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_KEYBLOBS);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_KEYBLOBS);
 		have_keyblobs = false;
 	} else {
 		have_keyblobs = true;
@@ -163,13 +162,13 @@ static void _derive_keyblob_keys(key_storage_t *keys) {
 		se_aes_key_set(KS_AES_CMAC, keys->keyblob_mac_key[i], sizeof(keys->keyblob_mac_key[i]));
 		se_aes_cmac(KS_AES_CMAC, keyblob_mac, sizeof(keyblob_mac), current_keyblob->iv, sizeof(current_keyblob->iv) + sizeof(keyblob_t));
 		if (memcmp(current_keyblob->cmac, keyblob_mac, sizeof(keyblob_mac)) != 0) {
-			log_printf(LOG_WARN, LOG_MSG_KEYS_DUMP_WARN_CORRUPT_KEYBLOBS, i);
+			log_printf(true, LOG_WARN, LOG_MSG_KEYS_DUMP_WARN_CORRUPT_KEYBLOBS, i);
 			continue;
 		}
 
 		// Decrypt keyblobs
 		se_aes_key_set(KS_AES_CTR, keys->keyblob_key[i], sizeof(keys->keyblob_key[i]));
-		se_aes_crypt_ctr(KS_AES_CTR, &keys->keyblob[i], sizeof(keyblob_t), &current_keyblob->key_data, sizeof(keyblob_t), current_keyblob->iv);
+		se_aes_crypt_ctr(KS_AES_CTR, &keys->keyblob[i], &current_keyblob->key_data, sizeof(keyblob_t), current_keyblob->iv);
 
 		memcpy(keys->package1_key[i], keys->keyblob[i].package1_key, sizeof(keys->package1_key[i]));
 		memcpy(keys->master_kek[i], keys->keyblob[i].master_kek, sizeof(keys->master_kek[i]));
@@ -188,7 +187,7 @@ static void _derive_master_keys(key_storage_t *prod_keys, key_storage_t *dev_key
 		_derive_master_keys_from_latest_key(keys, is_dev);
 	} else {
 		if (run_ams_keygen(NULL)) {
-			log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
+			log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
 			return;
 		}
 
@@ -270,7 +269,7 @@ static bool _get_titlekeys_from_save(u32 buf_size, const u8 *save_mac_key, title
 	}
 
 	if (f_open(&fp, titlekey_save_path, FA_READ | FA_OPEN_EXISTING)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_E1_SAVE);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_E1_SAVE);
 		return false;
 	}
 
@@ -278,10 +277,10 @@ static bool _get_titlekeys_from_save(u32 buf_size, const u8 *save_mac_key, title
 	save_init(save_ctx, &fp, save_mac_key, 0);
 
 	bool save_process_success = save_process(save_ctx);
-	TPRINTF("\n  Save process...");
+	// TPRINTF("\n  Save process...");
 
 	if (!save_process_success) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_PROCESS_ES_SAVE);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_PROCESS_ES_SAVE);
 		f_close(&fp);
 		save_free_contexts(save_ctx);
 		free(save_ctx);
@@ -289,7 +288,7 @@ static bool _get_titlekeys_from_save(u32 buf_size, const u8 *save_mac_key, title
 	}
 
 	if (!save_open_file(save_ctx, &ticket_file, ticket_list_bin_path, OPEN_MODE_READ)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_LOCATE_TICKET_LIST);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_LOCATE_TICKET_LIST);
 		f_close(&fp);
 		save_free_contexts(save_ctx);
 		free(save_ctx);
@@ -308,10 +307,10 @@ static bool _get_titlekeys_from_save(u32 buf_size, const u8 *save_mac_key, title
 		}
 		offset += br;
 	}
-	TPRINTF("  Count titlekeys...");
+	// TPRINTF("  Count titlekeys...");
 
 	if (!save_open_file(save_ctx, &ticket_file, ticket_bin_path, OPEN_MODE_READ)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_LOCATE_TICKET);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_LOCATE_TICKET);
 		f_close(&fp);
 		save_free_contexts(save_ctx);
 		free(save_ctx);
@@ -338,9 +337,9 @@ static bool _get_titlekeys_from_save(u32 buf_size, const u8 *save_mac_key, title
 	gfx_con_setpos(0, save_y);
 
 	if (is_personalized) {
-		TPRINTF("\nPersonalized... ");
+		// TPRINTF("\nPersonalized... ");
 	} else {
-		TPRINTF("\nCommon...       ");
+		// TPRINTF("\nCommon...       ");
 	}
 
 	gfx_printf("\n\n\n");
@@ -363,12 +362,12 @@ static bool _derive_sd_seed(key_storage_t *keys) {
 	FRESULT fr = f_open(&fp, private_path, FA_READ | FA_OPEN_EXISTING);
 	free(private_path);
 	if (fr) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_OPEN_SD_SEED_VECTOR);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_OPEN_SD_SEED_VECTOR);
 		return false;
 	}
 	// Get sd seed verification vector
 	if (f_read(&fp, keys->temp_key, SE_KEY_128_SIZE, &read_bytes) || read_bytes != SE_KEY_128_SIZE) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_SD_SEED_VECTOR);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_SD_SEED_VECTOR);
 		f_close(&fp);
 		return false;
 	}
@@ -376,7 +375,7 @@ static bool _derive_sd_seed(key_storage_t *keys) {
 
 	// This file is small enough that parsing the savedata properly is slower
 	if (f_open(&fp, "bis:/save/8000000000000043", FA_READ | FA_OPEN_EXISTING)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_OPEN_NS_APPMAN);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_OPEN_NS_APPMAN);
 		return false;
 	}
 
@@ -393,7 +392,7 @@ static bool _derive_sd_seed(key_storage_t *keys) {
 	}
 	f_close(&fp);
 
-	TPRINTF("SD Seed...      ");
+	// TPRINTF("SD Seed...      ");
 
 	return true;
 }
@@ -410,7 +409,7 @@ static bool _derive_titlekeys(key_storage_t *keys, titlekey_buffer_t *titlekey_b
 	_get_titlekeys_from_save(buf_size, keys->save_mac_key, titlekey_buffer, &keys->eticket_rsa_keypair);
 
 	gfx_printf("\n");
-	log_printf(LOG_INFO, LOG_MSG_KEYS_DUMP_TITLE_KEYS_FOUNDED, _titlekey_count);
+	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_TITLE_KEYS_FOUNDED, _titlekey_count);
 	gfx_printf("\n");
 
 	return true;
@@ -430,27 +429,27 @@ static void _derive_emmc_keys(key_storage_t *keys, titlekey_buffer_t *titlekey_b
 
 	LIST_INIT(gpt);
 
-	if (!mount_nand_part(&gpt, "SYSTEM", false, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
 		return;
 	}
 
 	if (!decrypt_ssl_rsa_key(keys, titlekey_buffer)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SSL_KEY_DERIVATION);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SSL_KEY_DERIVATION);
 	}
 
 	if (!decrypt_eticket_rsa_key(keys, titlekey_buffer, is_dev)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_ETICKET_KEY_DERIVATION);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_ETICKET_KEY_DERIVATION);
 	}
 
 	if (!_derive_sd_seed(keys)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_GET_SD_SEED);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_GET_SD_SEED);
 	}
 
 	if (!_derive_titlekeys(keys, titlekey_buffer, is_dev)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_TITLEKEYS_DERIVATION);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_TITLEKEYS_DERIVATION);
 	}
 
-	unmount_nand_part(&gpt, false, true, false, true);
+	unmount_nand_part(&gpt, false, true, true, true);
 }
 
 // The security engine supports partial key override for locked keyslots
@@ -466,9 +465,9 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 		return 1;
 	}
 
-	display_backlight_brightness(h_cfg.backlight, 1000);
-	gfx_clear_partial_grey(0x1B, 32, 1224);
-	gfx_con_setpos(0, 32);
+	// display_backlight_brightness(h_cfg.backlight, 1000);
+	// gfx_clear_partial_grey(0x1B, 32, 1224);
+	// gfx_con_setpos(0, 32);
 
 	u32 pos = 0;
 	u32 zeros[SE_KEY_128_SIZE / 4] = {0};
@@ -480,7 +479,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 		if (ks < ARRAY_SIZE(mariko_key_vectors)) {
 			se_aes_crypt_block_ecb(ks, DECRYPT, &data[0], mariko_key_vectors[ks]);
 			if (key_exists(data)) {
-				EPRINTFARGS("Failed to validate keyslot %d.", ks);
+				log_printf(true, LOG_ERR, LOG_MSG_MARIKO_KEYS_DUMP_VALIDATE_KEYSLOT_ERROR, ks);
 				continue;
 			}
 		}
@@ -498,7 +497,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 
 		// Skip saving key if two results are the same indicating unsuccessful overwrite or empty slot
 		if (memcmp(&data[0], &data[SE_KEY_128_SIZE], SE_KEY_128_SIZE) == 0) {
-			EPRINTFARGS("Failed to overwrite keyslot %d.", ks);
+			log_printf(true, LOG_ERR, LOG_MSG_MARIKO_KEYS_DUMP_VALIDATE_KEYSLOT_ERROR, ks);
 			continue;
 		}
 
@@ -513,7 +512,8 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 	free(data);
 
 	if (strlen(text_buffer) == 0) {
-		EPRINTFARGS("Failed to dump partial keys %d-%d.", start, start + count - 1);
+		
+		log_printf(true, LOG_ERR, LOG_MSG_MARIKO_KEYS_DUMP_DUMP_KEY_ERROR, start, start + count - 1);
 		free(text_buffer);
 		return 2;
 	}
@@ -528,13 +528,13 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 	}
 
 	if (!sd_mount()) {
-		EPRINTF("Unable to mount SD.");
+		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		free(text_buffer);
 		return 3;
 	}
 
 	if (f_open(&fp, keyfile_path, mode)) {
-		EPRINTF("Unable to write partial keys to SD.");
+		log_printf(true, LOG_ERR, LOG_MSG_MARIKO_KEYS_DUMP_WRITE_KEY_ERROR);
 		free(text_buffer);
 		return 3;
 	}
@@ -542,7 +542,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 	f_write(&fp, text_buffer, strlen(text_buffer), NULL);
 	f_close(&fp);
 
-	gfx_printf("%kWrote partials to %s\n", COLOR_GREEN, keyfile_path);
+	log_printf(true, LOG_OK, LOG_MSG_MARIKO_KEYS_DUMP_SUCCESS, keyfile_path);
 
 	free(text_buffer);
 
@@ -551,7 +551,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 
 static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_buffer, bool is_dev) {
 	if (!sd_mount()) {
-		log_printf(LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
+		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		return;
 	}
 
@@ -631,9 +631,9 @@ static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_bu
 	_save_key(root_key_name, keys->tsec_root_key, SE_KEY_128_SIZE, text_buffer);
 
 	gfx_printf("\n");
-	log_printf(LOG_INFO, LOG_MSG_KEYS_DUMP_KEYS_FOUNDED, _key_count, is_dev ? "dev" : "prod");
+	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_KEYS_FOUNDED, _key_count, is_dev ? "dev" : "prod");
 	gfx_printf("\n");
-	log_printf(LOG_INFO, LOG_MSG_KEYS_DUMP_KEYS_FOUNDED_VIA, KB_FIRMWARE_VERSION_MAX);
+	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_KEYS_FOUNDED_VIA, KB_FIRMWARE_VERSION_MAX);
 	gfx_printf("\n");
 
 	f_mkdir("sd:/switch");
@@ -642,9 +642,9 @@ static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_bu
 
 	FILINFO fno;
 	if (!sd_save_to_file(text_buffer, strlen(text_buffer), keyfile_path) && !f_stat(keyfile_path, &fno)) {
-		log_printf(LOG_OK, LOG_MSG_KEYS_DUMP_SAVE_FILES, (u32)fno.fsize, keyfile_path);
+		log_printf(true, LOG_OK, LOG_MSG_KEYS_DUMP_SAVE_FILES, (u32)fno.fsize, keyfile_path);
 	} else {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SAVE_KEYS_FILE);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SAVE_KEYS_FILE);
 	}
 
 	if (_titlekey_count == 0 || !titlekey_buffer) {
@@ -666,9 +666,9 @@ static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_bu
 
 	keyfile_path = "sd:/switch/title.keys";
 	if (!sd_save_to_file(text_buffer, strlen(text_buffer), keyfile_path) && !f_stat(keyfile_path, &fno)) {
-		log_printf(LOG_OK, LOG_MSG_KEYS_DUMP_SAVE_FILES, (u32)fno.fsize, keyfile_path);
+		log_printf(true, LOG_OK, LOG_MSG_KEYS_DUMP_SAVE_FILES, (u32)fno.fsize, keyfile_path);
 	} else {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SAVE_TITLEKEYS_FILE);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SAVE_TITLEKEYS_FILE);
 	}
 
 	free(text_buffer);
@@ -678,11 +678,12 @@ static void _derive_keys() {
 	minerva_periodic_training();
 
 	if (!check_keyslot_access()) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SET_KEYSLOT);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SET_KEYSLOT);
 		return;
 	}
 
-	u32 start_whole_operation_time = get_tmr_us();
+	u32 start_time, end_time;
+	start_time = get_tmr_us();
 
 	if (!mount_nand_part(NULL, "BOOT0", true, true, false, false, NULL, NULL, NULL, NULL)) {
 		return;
@@ -695,31 +696,31 @@ static void _derive_keys() {
 
 	_derive_master_keys(&prod_keys, &dev_keys, is_dev);
 
-	TPRINTF("Master keys...  ");
+	// TPRINTF("Master keys...  ");
 
 	_derive_bis_keys(keys);
 
-	TPRINTF("BIS keys...     ");
+	// TPRINTF("BIS keys...     ");
 
 	_derive_misc_keys(keys);
 	_derive_non_unique_keys(&prod_keys, is_dev);
 	_derive_non_unique_keys(&dev_keys, is_dev);
 
-	titlekey_buffer_t *titlekey_buffer = (titlekey_buffer_t *)TITLEKEY_BUF_ADR;
+	unmount_nand_part(NULL, true, false, true, false);
+
+	titlekey_buffer_t *titlekey_buffer = (titlekey_buffer_t *)MIXD_BUF_ALIGNED;
 
 	// Requires BIS key for SYSTEM partition
 	if (!emmc_storage.initialized) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_EMMC_NOT_INITIALIZED);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_EMMC_NOT_INITIALIZED);
 	} else if (key_exists(keys->bis_key[2])) {
 		_derive_emmc_keys(keys, titlekey_buffer, is_dev);
 	} else {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_BIS_KEYS_NEEDED);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_BIS_KEYS_NEEDED);
 	}
 
-unmount_nand_part(NULL, true, false, true, false);
-
 	end_time = get_tmr_us();
-	log_printf(LOG_INFO, LOG_MSG_KEYS_DUMP_END, end_time - start_whole_operation_time);
+	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_END, end_time - start_time);
 
 	if (h_cfg.t210b01) {
 		// On Mariko, save only relevant key set
@@ -738,7 +739,7 @@ void derive_amiibo_keys() {
 	// display_backlight_brightness(h_cfg.backlight, 1000);
 	// gfx_clear_partial_grey(0x1B, 32, 1224);
 	// gfx_con_setpos(0, 32);
-	log_printf(LOG_INFO, LOG_MSG_AMIIBO_KEYS_DUMP_BEGIN);
+	log_printf(true, LOG_INFO, LOG_MSG_AMIIBO_KEYS_DUMP_BEGIN);
 
 	bool is_dev = fuse_read_hw_state() == FUSE_NX_HW_STATE_DEV;
 
@@ -756,7 +757,7 @@ void derive_amiibo_keys() {
 	minerva_periodic_training();
 
 	if (!key_exists(keys->master_key[0])) {
-		log_printf(LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_MASTER_KEY);
+		log_printf(true, LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_MASTER_KEY);
 		minerva_change_freq(FREQ_800);
 		save_screenshot_and_go_back("dump_amiibo_keys");
 		return;
@@ -769,18 +770,18 @@ void derive_amiibo_keys() {
 	minerva_periodic_training();
 
 	u32 hash[SE_SHA_256_SIZE / 4] = {0};
-	se_calc_sha256_oneshot(hash, &nfc_save_keys[0], sizeof(nfc_save_keys));
+	se_sha_hash_256_oneshot(hash, &nfc_save_keys[0], sizeof(nfc_save_keys));
 
 	if (memcmp(hash, is_dev ? nfc_blob_hash_dev : nfc_blob_hash, sizeof(hash)) != 0) {
-		log_printf(LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_HASH);
+		log_printf(true, LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_HASH);
 	} else {
 		const char *keyfile_path = is_dev ? "sd:/switch/key_dev.bin" : "sd:/switch/key_retail.bin";
 
 		if (!sd_save_to_file(&nfc_save_keys[0], sizeof(nfc_save_keys), keyfile_path)) {
-			log_printf(LOG_OK, LOG_MSG_AMIIBO_KEYS_DUMP_SUCCESS, keyfile_path);
+			log_printf(true, LOG_OK, LOG_MSG_AMIIBO_KEYS_DUMP_SUCCESS, keyfile_path);
 			gfx_printf("\n");
 		} else {
-			log_printf(LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_SAVE_FILE);
+			log_printf(true, LOG_ERR, LOG_MSG_AMIIBO_KEYS_DUMP_ERR_SAVE_FILE);
 		}
 	}
 
@@ -799,12 +800,10 @@ void dump_keys(bool no_display) {
 	// gfx_clear_grey(0x1B);
 	// gfx_con_setpos(0, 0);
 
-	log_printf(LOG_INFO, LOG_MSG_KEYS_DUMP_BEGIN);
+	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_BEGIN);
 
 	_key_count = 0;
 	_titlekey_count = 0;
-
-	start_time = get_tmr_us();
 
 	_derive_keys();
 
@@ -821,6 +820,7 @@ void dump_keys(bool no_display) {
 	}
 }
 
+u8 global_save_mac_key[SE_KEY_128_SIZE];
 bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 	// minerva_change_freq(FREQ_1600);
 
@@ -840,11 +840,16 @@ bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 
 		_derive_master_keys(&prod_keys, &dev_keys, is_dev);
 		_derive_bis_keys(keys);
+		_derive_non_unique_keys(&prod_keys, is_dev);
+		_derive_non_unique_keys(&dev_keys, is_dev);
+		_derive_misc_keys(keys);
 	} else {
 		if (!GetKeysFromFile("sd:/LockSmith-RCM/prod.keys", keys)) {
 			return false;
 		}
 	}
+
+	memcpy(global_save_mac_key, keys->save_mac_key, SE_KEY_128_SIZE);
 
 	// Copy keys to output if provided
 	if (keys_out) {
@@ -860,9 +865,9 @@ bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 	se_aes_key_set(KS_BIS_02_TWEAK, keys->bis_key[2] + 0x10, SE_KEY_128_SIZE);
 
         // Not for bis but whatever
-	// se_aes_key_set(17, keys->header_key + 0x00, 0x10);
-	// se_aes_key_set(18, keys->header_key + 0x10, 0x10);
-	// se_aes_key_set(19, keys->save_mac_key, 0x10);
+	se_aes_key_set(6, keys->header_key + 0x00, 0x10);
+	se_aes_key_set(7, keys->header_key + 0x10, 0x10);
+	// se_aes_key_set(8, keys->save_mac_key, 0x10);
 
 	// minerva_change_freq(FREQ_800);
 
@@ -874,11 +879,12 @@ void dump_keys_prodinfogen(key_storage_t* output) {
 	minerva_periodic_training();
 
 	if (!check_keyslot_access()) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SET_KEYSLOT);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_SET_KEYSLOT);
 		return;
 	}
 
-	u32 start_whole_operation_time = get_tmr_us();
+
+	u32 start_time, end_time;
 	start_time = get_tmr_us();
 
 	bool is_dev = fuse_read_hw_state() == FUSE_NX_HW_STATE_DEV;
@@ -894,7 +900,7 @@ void dump_keys_prodinfogen(key_storage_t* output) {
 	} else {
 		int res = run_ams_keygen(keys);
 		if (res) {
-			log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
+			log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
 			return;
 		}
 
@@ -911,13 +917,13 @@ void dump_keys_prodinfogen(key_storage_t* output) {
 		minerva_periodic_training();
 	}
 
-	TPRINTF("Master keys...  ");
+	// TPRINTF("Master keys...  ");
 
 	minerva_periodic_training();
 	_derive_misc_keys(keys);
 
 	end_time = get_tmr_us();
-	log_printf(LOG_INFO, LOG_MSG_PRODINFOGEN_KEYS_DUMP_END, end_time - start_whole_operation_time);
+	log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_KEYS_DUMP_END, end_time - start_time);
 	gfx_printf("\n");
 	memcpy(output, keys, sizeof(key_storage_t));
 }

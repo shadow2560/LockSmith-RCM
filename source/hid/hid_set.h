@@ -1,4 +1,6 @@
-#pragma once
+#ifndef _HID_SET_H_
+#define _HID_SET_H_
+
 #include <utils/types.h>
 
 //#define BIT(n) (1U << n)
@@ -78,3 +80,5 @@ bool hidConnected();
 bool validate_simple(Input_t *in);
 bool menu_validate(Input_t *in);
 int menu_nav(Input_t *in);
+
+#endif

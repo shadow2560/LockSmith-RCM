@@ -11,17 +11,8 @@
 
 #include "../tools.h"
 
-static u32 log_color_from_level(u8 lvl) {
-	switch (lvl) {
-		case LOG_OK:   return COLOR_GREEN;
-		case LOG_WARN: return COLOR_ORANGE;
-		case LOG_ERR:  return COLOR_RED;
-		default:       return COLOR_WHITE;
-	}
-}
-
 static int format_log_entry(char *out, int out_sz, const log_entry_t *e) {
-	return s_printf(out, g_log_messages[e->msg_id],
+	return s_printf(out, log_msg_get((log_msg_id_t)e->msg_id),
 		log_arg_value((log_entry_t *)e, 0),
 		log_arg_value((log_entry_t *)e, 1),
 		log_arg_value((log_entry_t *)e, 2),

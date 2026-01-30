@@ -58,18 +58,27 @@ CUSTOMDEFINES += -DBDK_WATCHDOG_FIQ_ENABLE
 WARNINGS := -Wall -Wsign-compare -Wtype-limits -Wno-array-bounds -Wno-stringop-overread -Wno-stringop-overflow
 
 ARCH := -march=armv4t -mtune=arm7tdmi -mthumb -mthumb-interwork $(WARNINGS)
-CFLAGS = $(ARCH) -Os -nostdlib -ffunction-sections -fdata-sections -fomit-frame-pointer -std=gnu11 $(CUSTOMDEFINES)
+CFLAGS = $(ARCH) -Os -nostdlib -ffunction-sections -fdata-sections -fomit-frame-pointer -std=gnu11 $(CUSTOMDEFINES) -I$(GEN_DIR)
 # CFLAGS += -fno-inline
-LDFLAGS = $(ARCH) -nostartfiles -lgcc -Wl,--strip-debug,--nmagic,--gc-sections -Xlinker --defsym=IPL_LOAD_ADDR=$(IPL_LOAD_ADDR)
+LDFLAGS = $(ARCH) -nostartfiles -lgcc -Wl,-Map,build/LockSmith-RCM/LockSmith-RCM.map,--cref,--strip-debug,--nmagic,--gc-sections -Xlinker --defsym=IPL_LOAD_ADDR=$(IPL_LOAD_ADDR)
 
 LDRDIR := $(wildcard loader)
 TOOLSLZ := $(wildcard tools/lz)
 TOOLSB2C := $(wildcard tools/bin2c)
-TOOLS := $(TOOLSLZ) $(TOOLSB2C)
+TOOLSPACK := $(wildcard tools/pack_assets)
+TOOLS := $(TOOLSLZ) $(TOOLSB2C) $(TOOLSPACK)
+
+# Generated packed assets (messages and NCA DB)
+GEN_DIR := $(BUILDDIR)/$(TARGET)/generated
+GEN_MSG_H := $(GEN_DIR)/messages_packed.h
+GEN_NCA_H := $(GEN_DIR)/fuse_nca_packed.h
+
+# Add generated include directory
+CFLAGS += -I$(GEN_DIR)
 
 ################################################################################
 
-.PHONY: all clean $(LDRDIR) $(TOOLS)
+.PHONY: all clean tools $(LDRDIR) $(TOOLS)
 
 all: $(OUTPUTDIR)/$(TARGET).bin $(LDRDIR)
 	@echo "--------------------------------------"
@@ -85,14 +94,39 @@ all: $(OUTPUTDIR)/$(TARGET).bin $(LDRDIR)
 	@if [ ${BIN_SIZE} -gt 126296 ]; then echo "\e[1;33mPayload size exceeds limit!\e[0m"; fi
 	@echo "--------------------------------------"
 
-clean: $(TOOLS)
+################################################################################
+# Host-side helper tools
+################################################################################
+
+# Ensure we have concrete file targets so parallel builds (make -j) do not race.
+$(TOOLSLZ)/lz77:
+	@$(MAKE) --no-print-directory -C $(TOOLSLZ) -$(MAKEFLAGS)
+
+$(TOOLSB2C)/bin2c:
+	@$(MAKE) --no-print-directory -C $(TOOLSB2C) -$(MAKEFLAGS)
+
+$(TOOLSPACK)/pack_assets:
+	@$(MAKE) --no-print-directory -C $(TOOLSPACK) -$(MAKEFLAGS)
+
+tools: $(TOOLSLZ)/lz77 $(TOOLSB2C)/bin2c $(TOOLSPACK)/pack_assets
+
+################################################################################
+
+clean:
 	@rm -rf $(BUILDDIR)
 	@rm -rf $(OUTPUTDIR)
 	@rm -f $(KEYGENDIR)/$(KEYGENH)
 	@rm -f $(LDRDIR)/payload_00.h
 	@rm -f $(LDRDIR)/payload_01.h
+	@rm -f $(TOOLSPACK)/pack_assets $(TOOLSPACK)/pack_assets.exe
+	@rm -f $(TOOLSB2C)/bin2c $(TOOLSB2C)/bin2c.exe
+	@rm -f $(TOOLSLZ)/lz77 $(TOOLSLZ)/lz77.exe
+	@$(MAKE) --no-print-directory -C $(TOOLSPACK) clean -$(MAKEFLAGS) || true
+	@$(MAKE) --no-print-directory -C $(TOOLSB2C) clean -$(MAKEFLAGS) || true
+	@$(MAKE) --no-print-directory -C $(TOOLSLZ) clean -$(MAKEFLAGS) || true
 
-$(LDRDIR): $(OUTPUTDIR)/$(TARGET).bin
+
+$(LDRDIR): $(OUTPUTDIR)/$(TARGET).bin tools
 	@$(TOOLSLZ)/lz77 $(OUTPUTDIR)/$(TARGET).bin
 	mv $(OUTPUTDIR)/$(TARGET).bin $(OUTPUTDIR)/$(TARGET)_unc.bin
 	@mv $(OUTPUTDIR)/$(TARGET).bin.00.lz payload_00
@@ -103,10 +137,27 @@ $(LDRDIR): $(OUTPUTDIR)/$(TARGET).bin
 	@rm payload_01
 	@$(MAKE) --no-print-directory -C $@ $(MAKECMDGOALS) -$(MAKEFLAGS) PAYLOAD_NAME=$(TARGET)
 
+
+# Backwards compatible: building in tools/* directories explicitly still works.
 $(TOOLS):
 	@$(MAKE) --no-print-directory -C $@ $(MAKECMDGOALS) -$(MAKEFLAGS)
 
-$(OUTPUTDIR)/$(TARGET).bin: $(BUILDDIR)/$(TARGET)/$(TARGET).elf $(TOOLS)
+
+# Generate packed headers (host-side tool). Single rule generates both headers to avoid -j races.
+$(GEN_MSG_H) $(GEN_NCA_H): $(SOURCEDIR)/gfx/messages.c $(SOURCEDIR)/gfx/messages.h $(SOURCEDIR)/fuse_check/fuse_check.c | $(TOOLSPACK)/pack_assets
+	@mkdir -p "$(GEN_DIR)"
+	@$(TOOLSPACK)/pack_assets "$(SOURCEDIR)" "$(GEN_DIR)"
+
+# In parallel builds, many units include messages.h; make that ordering explicit
+# so we never compile before the generated headers exist.
+$(OBJS): | $(GEN_MSG_H) $(GEN_NCA_H)
+
+# Ensure key objects rebuild if packed assets change.
+$(BUILDDIR)/$(TARGET)/gfx/messages.o: $(GEN_MSG_H)
+$(BUILDDIR)/$(TARGET)/gfx/display_log_bin.o: $(GEN_MSG_H)
+$(BUILDDIR)/$(TARGET)/fuse_check/fuse_check.o: $(GEN_NCA_H)
+
+$(OUTPUTDIR)/$(TARGET).bin: $(BUILDDIR)/$(TARGET)/$(TARGET).elf tools
 	@mkdir -p "$(@D)"
 	$(OBJCOPY) -S -O binary $< $@
 
@@ -116,7 +167,7 @@ $(BUILDDIR)/$(TARGET)/$(TARGET).elf: $(OBJS)
 
 $(OBJS): | $(KEYGENDIR)
 
-$(KEYGENDIR): $(TOOLS)
+$(KEYGENDIR): tools
 	@cd $(KEYGENDIR) && ../$(TOOLSB2C)/bin2c $(KEYGEN) > $(KEYGENH)
 
 $(BUILDDIR)/$(TARGET)/%.o: $(SOURCEDIR)/%.c

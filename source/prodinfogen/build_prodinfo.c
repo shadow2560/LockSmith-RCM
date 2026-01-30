@@ -44,13 +44,14 @@
 
 #include <string.h>
 
+// #include "../incognito/incognito.h"
+#include "../keys/cal0_read.h"
 #include "../keys/keys.h"
-#include "cal_blocks.h"
 #include "cal0.h"
-#include "crc16.h"
 #include "donor_keys.h"
 #include "../keys/crypto.h"
 #include "../keys/key_sources.inl"
+#include "../prodinfo_rewrite/prodinfo_rewrite.h"
 
 #include "../tools.h"
 #include "../gfx/messages.h"
@@ -65,10 +66,6 @@ extern bool lock_sector_cache;
 extern u32 secindex;
 extern volatile nyx_storage_t *nyx_str;
 
-// Not static so that keys.c:dump_keys can use it.
-// static u32 color_idx = 0;
-static u32 start_time, end_time;
-
 // static const char msg_writing[] = "%kWriting %s\n";
 
 static void _build_cal0(u8* prodinfo_buffer, u32 prodinfo_size, u8 master_key_0[16], u64 device_id_int)
@@ -76,8 +73,8 @@ static void _build_cal0(u8* prodinfo_buffer, u32 prodinfo_size, u8 master_key_0[
 	char device_id_as_string[0x11] = {0};
 	device_id_string(device_id_as_string);
 
-	gfx_printf("Your device id: %s\n", device_id_as_string);
-	gfx_printf("key generation: %d\n\n", fuse_read_odm_keygen_rev());
+	log_printf(false, LOG_INFO, LOG_MSG_PRODINFOGEN_DISPLAY_DEVICE_ID, device_id_as_string);
+	log_printf(false, LOG_INFO, LOG_MSG_PRODINFOGEN_DISPLAY_KEY_GENERATION, fuse_read_odm_keygen_rev());
 
 	// gfx_printf(msg_writing, colors[(color_idx++) % 6], "header");
 	// gfx_printf("%kWriting header\n", colors[(color_idx++) % 6]);
@@ -127,9 +124,9 @@ static void _build_cal0(u8* prodinfo_buffer, u32 prodinfo_size, u8 master_key_0[
 	// gfx_printf("%kWriting device id strings\n", colors[(color_idx++) % 6]);
 	// On boot, the device id from fuses is compared to the one from certificates.
 	// Until 14.0.0 it uses EccB233DeviceCertificate.
-	write_device_id_string_at_offset(prodinfo_buffer, device_id_as_string, OFFSET_OF_BLOCK(EccB233DeviceCertificate) + 0xC4);
+	write_device_id_string_at_offset(prodinfo_buffer, device_id_as_string, pi_off(PI_F_EccB233DeviceCertificate) + 0xC4);
 	// Starting from 14.0.0, it uses Rsa2048ETicketCertificate
-	write_device_id_string_at_offset(prodinfo_buffer, device_id_as_string, OFFSET_OF_BLOCK(Rsa2048ETicketCertificate) + 0xC4);
+	write_device_id_string_at_offset(prodinfo_buffer, device_id_as_string, pi_off(PI_F_Rsa2048ETicketCertificate) + 0xC4);
 
 	// gfx_printf(msg_writing, colors[(color_idx++) % 6], "empty SSL certificate\n");
 	// gfx_printf("%kWriting empty SSL certificate\n\n", colors[(color_idx++) % 6]);
@@ -138,25 +135,29 @@ static void _build_cal0(u8* prodinfo_buffer, u32 prodinfo_size, u8 master_key_0[
 	// GCM blocks
 	// gfx_printf(msg_writing, colors[(color_idx++) % 6], "extended keys");
 	// gfx_printf("%kWriting extended keys\n", colors[(color_idx++) % 6]);
-	encrypt_extended_device_key(prodinfo_buffer, prodinfo_buffer + OFFSET_OF_BLOCK(ExtendedEccB233DeviceKey) + 0x10, device_id_int, master_key_0);
-	encrypt_extended_eticket_key(prodinfo_buffer, prodinfo_buffer + OFFSET_OF_BLOCK(ExtendedRsa2048ETicketKey) + 0x10, device_id_int, master_key_0);
+	encrypt_extended_device_key(prodinfo_buffer, prodinfo_buffer + pi_off(PI_F_ExtendedEccB233DeviceKey) + 0x10, device_id_int, master_key_0);
+	encrypt_extended_eticket_key(prodinfo_buffer, prodinfo_buffer + pi_off(PI_F_ExtendedRsa2048ETicketKey) + 0x10, device_id_int, master_key_0);
 
 	// gfx_printf(msg_writing, colors[(color_idx++) % 6], "checksums");
 	// gfx_printf("\n%kWriting checksums\n", colors[(color_idx++) % 6]);
-	write_all_crc(prodinfo_buffer, prodinfo_size);
-	write_all_sha256(prodinfo_buffer);
+	/* Recalculate all CRC16 and SHA256 fields using the unified PRODINFO table. */
+	if (prodinfo_verify_or_rewrite_hashes(prodinfo_buffer, prodinfo_size, NULL, prodinfo_buffer, prodinfo_size) != PI_OK) {
+	// if (prodinfo_rewrite_hashes(prodinfo_buffer, prodinfo_size, prodinfo_buffer, prodinfo_size) != PI_OK) {
+		log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_CREATE);
+	}
 
-	write_body_checksum(prodinfo_buffer);
-
+	/* Optional verification */
+	if (!verifyProdinfo(prodinfo_buffer)) {
+		log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_CREATE);
+	}
 	if (!valid_own_prodinfo(prodinfo_buffer, prodinfo_size, master_key_0)) {
-		log_printf(LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_CREATE);
-		gfx_printf("%k", COLOR_WHITE);
+		log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_CREATE);
 	}
 }
 
 static void _save_prodinfo_to_sd(u8* prodinfo_buffer, u32 prodinfo_size, bool is_from_donor) {
 	if (!sd_mount()) {
-		log_printf(LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
+		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		return;
 	}
 
@@ -169,9 +170,9 @@ static void _save_prodinfo_to_sd(u8* prodinfo_buffer, u32 prodinfo_size, bool is
 
 	FILINFO fno;
 	if (sd_save_to_file(prodinfo_buffer, prodinfo_size, prodinfo_path) == FR_OK && f_stat(prodinfo_path, &fno) == FR_OK) {
-		log_printf(LOG_OK, LOG_MSG_PRODINFOGEN_SAVE_FILE_SUCCESS, (u32)fno.fsize, prodinfo_path);
+		log_printf(true, LOG_OK, LOG_MSG_PRODINFOGEN_SAVE_FILE_SUCCESS, (u32)fno.fsize, prodinfo_path);
 	} else {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_SAVE_FILE_ERROR);
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_SAVE_FILE_ERROR);
 	}
 }
 
@@ -197,6 +198,7 @@ static void _master_key_from_key_generation(u8 donor_prodinfo_version, u8 key_ge
 	}
 }
 
+/*
 static inline u32 _read_le_u32(const void *buffer, u32 offset)
 {
 	return (*(u8 *)(buffer + offset + 0)) |
@@ -204,19 +206,20 @@ static inline u32 _read_le_u32(const void *buffer, u32 offset)
 		   (*(u8 *)(buffer + offset + 2) << 0x10) |
 		   (*(u8 *)(buffer + offset + 3) << 0x18);
 }
+*/
 
 static bool _read_donor_prodinfo(imported_parts_t* output, const char* donor_prodinfo_filename, const read_keyset_t* donor_keyset, const key_storage_t* keyset) {
 	FILINFO fno;
 	if (f_stat(donor_prodinfo_filename, &fno)) {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_FIND_DONOR_BIN);
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_FIND_DONOR_BIN);
 		return false;
 	}
 	else if (fno.fsize < MINIMUM_PRODINFO_SIZE) {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_TOO_SMALL, fno.fsize, MINIMUM_PRODINFO_SIZE);
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_TOO_SMALL, fno.fsize, MINIMUM_PRODINFO_SIZE);
 		return false;
 	}
 	else if (fno.fsize > MAXIMUM_PRODINFO_SIZE) {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_TOO_BIG, fno.fsize, MAXIMUM_PRODINFO_SIZE);
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_TOO_BIG, fno.fsize, MAXIMUM_PRODINFO_SIZE);
 		return false;
 	}
 
@@ -225,30 +228,31 @@ static bool _read_donor_prodinfo(imported_parts_t* output, const char* donor_pro
 	u8 *donor_prodinfo_buffer = sd_file_read(donor_prodinfo_filename, &donor_prodinfo_size);
 
 	if (!valid_prodinfo_checksums(donor_prodinfo_buffer, donor_prodinfo_size)) {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_INVALID);
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_INVALID);
 		return false;
 	}
 
-	u32 donor_prodinfo_version = _read_le_u32(donor_prodinfo_buffer, 0x4);
+	// u32 donor_prodinfo_version = _read_le_u32(donor_prodinfo_buffer, 0x4);
+	u32 donor_prodinfo_version = rd_u32_le(donor_prodinfo_buffer + pi_off(PI_F_Version));
 	char donor_prodinfo_device_id[0x11] = {0};
-	memcpy(donor_prodinfo_device_id, donor_prodinfo_buffer + OFFSET_OF_BLOCK(EccB233DeviceCertificate) + 0xC6, 0x10);
+	memcpy(donor_prodinfo_device_id, donor_prodinfo_buffer + pi_off(PI_F_EccB233DeviceCertificate) + 0xC6, 0x10);
 
-	gfx_printf("Donor PRODINFO looks valid\n version = %d\n device id = %s\n\n", donor_prodinfo_version, donor_prodinfo_device_id);
+	log_printf(false, LOG_INFO, LOG_MSG_PRODINFOGEN_DONOR_INFOS, donor_prodinfo_version, donor_prodinfo_device_id);
 
 	if (donor_prodinfo_version >= 9 && !key_exists(donor_keyset->device_key_4x)) {
-		log_printf(LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_KEY4X);
+		log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_KEY4X);
 	}
 
 	// GameCardCertificate
-	memcpy(output->gamecard_certificate, donor_prodinfo_buffer + OFFSET_OF_BLOCK(GameCardCertificate), SIZE_OF_BLOCK(GameCardCertificate));
+	memcpy(output->gamecard_certificate, donor_prodinfo_buffer + pi_off(PI_F_GameCardCertificate), pi_len(PI_F_GameCardCertificate));
 
 	// ExtendedGameCardKey
-	u8 key_generation = *(donor_prodinfo_buffer + OFFSET_OF_BLOCK(ExtendedGameCardKey) + SIZE_OF_BLOCK(ExtendedGameCardKey) - 0x10) - 1;
+	u8 key_generation = *(donor_prodinfo_buffer + pi_off(PI_F_ExtendedGameCardKey) + pi_len(PI_F_ExtendedGameCardKey) - 0x10) - 1;
 	u8 personalized_master_key[SE_KEY_128_SIZE] = {0};
 	_master_key_from_key_generation(donor_prodinfo_version, key_generation, donor_keyset, keyset, personalized_master_key);
 
 	if (!decrypt_extended_gamecard_key(donor_prodinfo_buffer, output->extended_gamecard_key, personalized_master_key)) {
-		log_printf(LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_KEY_EGC);
+		log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_KEY_EGC);
 	}
 
 	return true;
@@ -256,28 +260,28 @@ static bool _read_donor_prodinfo(imported_parts_t* output, const char* donor_pro
 
 void build_prodinfo(const char* optional_donor_filename, bool end_with_key_press) {
 	minerva_change_freq(FREQ_1600);
+	u32 start_time, end_time;
 
 	// display_backlight_brightness(h_cfg.backlight, 1000);
 	// gfx_clear_grey(0x1B);
 	// gfx_con_setpos(0, 0);
 
-	log_printf(LOG_INFO, LOG_MSG_PRODINFOGEN_BEGIN);
+	log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_BEGIN);
 	gfx_printf("\n\n");
-
-	// color_idx = 0;
 
 	start_time = get_tmr_us();
 
-	gfx_printf("Dumping keys...\n");
+	log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_KEYS_DUMPING);
 	key_storage_t keyset = {0};
 	dump_keys_prodinfogen(&keyset);
 
-	if (get_crc_16(keyset.master_key[0], 0x10) != 0x801B) {
-		log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_MASTER_KEY);
+	if (crc16_calc(keyset.master_key[0], 0x10) != 0x801B) {
+		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_MASTER_KEY);
 		gfx_printf("\n");
 	} else {
 		u32 prodinfo_size = MAXIMUM_PRODINFO_SIZE;
-		u8 *prodinfo_buffer = calloc(prodinfo_size, 1);
+		memset(cal0_buf, 0, NX_EMMC_CALIBRATION_SIZE);
+		// u8 *cal0_buf = calloc(prodinfo_size, 1);
 
 		u64 device_id_int = fuse_get_device_id();
 
@@ -290,7 +294,7 @@ void build_prodinfo(const char* optional_donor_filename, bool end_with_key_press
 			read_keyset_t donor_keyset = {0};
 			bool read_keys_result = read_keys(&donor_keyset, "sd:/switch/donor.keys");
 			if (!read_keys_result) {
-				log_printf(LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_READ_DONOR_KEYS);
+				log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_READ_DONOR_KEYS);
 			}
 
 			imported_parts_t imported_parts = {0};
@@ -298,32 +302,38 @@ void build_prodinfo(const char* optional_donor_filename, bool end_with_key_press
 
 			if (!import_result) {
 				gfx_printf("\n");
-				log_printf(LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_FALLBACK_DONOR_TO_SCRATCH);
+				log_printf(true, LOG_WARN, LOG_MSG_PRODINFOGEN_WARN_FALLBACK_DONOR_TO_SCRATCH);
 				memset(&imported_parts, 0, sizeof(imported_parts_t));
 			} else {
-				gfx_printf("Importing GameCard certificate\n");
-				memcpy(prodinfo_buffer + OFFSET_OF_BLOCK(GameCardCertificate), imported_parts.gamecard_certificate, SIZE_OF_BLOCK(GameCardCertificate));
+				log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_GAMECARD_CERT_IMPORT);
+				memcpy(cal0_buf + pi_off(PI_F_GameCardCertificate), imported_parts.gamecard_certificate, pi_len(PI_F_GameCardCertificate));
 								
-				gfx_printf("Importing extended GameCard key\n\n");
-				memcpy(prodinfo_buffer + OFFSET_OF_BLOCK(ExtendedGameCardKey) + 0x10, imported_parts.extended_gamecard_key, SIZE_OF_BLOCK(ExtendedGameCardKey));
+				log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_EXTENDED_GAMECARD_key_IMPORT);
+				gfx_printf("\n");
+				memcpy(cal0_buf + pi_off(PI_F_ExtendedGameCardKey) + 0x10, imported_parts.extended_gamecard_key, pi_len(PI_F_ExtendedGameCardKey));
 			
 				// Don't encrypt it when building from scratch, as it will prevent the console from booting.
-				encrypt_extended_gamecard_key(prodinfo_buffer, prodinfo_buffer + OFFSET_OF_BLOCK(ExtendedGameCardKey) + 0x10, device_id_int, keyset.master_key[0]);
+				encrypt_extended_gamecard_key(cal0_buf, cal0_buf + pi_off(PI_F_ExtendedGameCardKey) + 0x10, device_id_int, keyset.master_key[0]);
 			}
 		}
 
-		_build_cal0(prodinfo_buffer, prodinfo_size, keyset.master_key[0], device_id_int);
+		_build_cal0(cal0_buf, prodinfo_size, keyset.master_key[0], device_id_int);
 
 		gfx_printf("\n");
-		log_printf(LOG_INFO, LOG_MSG_PRODINFOGEN_WRITING_FILE);
-		_save_prodinfo_to_sd(prodinfo_buffer, prodinfo_size, is_from_donor);
+		log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_WRITING_FILE);
+		// LIST_INIT(gpt);
+		// if (mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
+			// writeData(cal0_buf, 0, prodinfo_size, NULL);
+			// unmount_nand_part(&gpt, false, true, true, false);
+		// }
+		_save_prodinfo_to_sd(cal0_buf, prodinfo_size, is_from_donor);
 
-		free(prodinfo_buffer); 
+		// free(cal0_buf); 
 	}
 
 	end_time = get_tmr_us();
 	gfx_printf("\n");
-	log_printf(LOG_OK, LOG_MSG_PRODINFOGEN_WRITING_FILE, end_time - start_time);
+	log_printf(true, LOG_OK, LOG_MSG_PRODINFOGEN_WRITING_FILE, end_time - start_time);
 	gfx_printf("\n");
 
 

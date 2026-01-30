@@ -60,11 +60,11 @@ void ssl_derive_rsa_kek_original(key_storage_t *keys, void *out_rsa_kek, bool is
 }
 
 bool decrypt_ssl_rsa_key(key_storage_t *keys, void *buffer) {
-	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, buffer)) {
+	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, buffer, NULL)) {
 		return false;
 	}
 
-	nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)buffer;
+	// nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)buffer;
 	u32 generation = 0;
 	const void *encrypted_key = NULL;
 	const void *iv = NULL;
@@ -72,7 +72,8 @@ bool decrypt_ssl_rsa_key(key_storage_t *keys, void *buffer) {
 	void *ctr_key = NULL;
 	bool enforce_unique = true;
 
-	if (!cal0_get_ssl_rsa_key(cal0, &encrypted_key, &key_size, &iv, &generation)) {
+	// if (!cal0_get_ssl_rsa_key(cal0, &encrypted_key, &key_size, &iv, &generation)) {
+	if (!cal0_get_ssl_rsa_key(buffer, &encrypted_key, &key_size, &iv, &generation)) {
 		return false;
 	}
 
@@ -103,7 +104,7 @@ bool decrypt_ssl_rsa_key(key_storage_t *keys, void *buffer) {
 
 	u32 ctr_size = enforce_unique ? key_size - 0x20 : key_size - 0x10;
 	se_aes_key_set(KS_AES_CTR, ctr_key, SE_KEY_128_SIZE);
-	se_aes_crypt_ctr(KS_AES_CTR, keys->ssl_rsa_key, ctr_size, encrypted_key, ctr_size, (void*) iv);
+	se_aes_crypt_ctr(KS_AES_CTR, keys->ssl_rsa_key, encrypted_key, ctr_size, (void*) iv);
 
 	if (enforce_unique) {
 		u32 calc_mac[SE_KEY_128_SIZE / 4] = {0};
@@ -111,7 +112,7 @@ bool decrypt_ssl_rsa_key(key_storage_t *keys, void *buffer) {
 
 		const u8 *key8 = (const u8 *)encrypted_key;
 		if (memcmp(calc_mac, &key8[ctr_size], 0x10) != 0) {
-			log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_SSL_INVALID_GMAC);
+			log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_SSL_INVALID_GMAC);
 			memset(keys->ssl_rsa_key, 0, sizeof(keys->ssl_rsa_key));
 			return false;
 		}

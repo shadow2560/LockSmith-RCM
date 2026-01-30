@@ -20,9 +20,12 @@
 #include "../storage/nx_emmc_bis.h"
 #include <utils/types.h>
 
-u16  crc16_calc(const u8 *buf, u32 len);
-bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer);
-bool cal0_get_ssl_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
-bool cal0_get_eticket_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+u16 crc16_calc_continue(u16 crc, const u8 *buf, u32 len);
+u16 crc16_calc(const u8 *buf, u32 len);
+bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer, const char* sd_path);
+// bool cal0_get_ssl_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+// bool cal0_get_eticket_rsa_key(const nx_emmc_cal0_t *cal0, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+bool cal0_get_ssl_rsa_key(const u8 *buf, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
+bool cal0_get_eticket_rsa_key(const u8 *buf, const void **out_key, u32 *out_key_size, const void **out_iv, u32 *out_generation);
 
 #endif

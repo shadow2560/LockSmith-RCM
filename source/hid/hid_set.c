@@ -1,4 +1,4 @@
-#include "hid.h"
+#include "hid_set.h"
 #include <input/joycon.h>
 #include <utils/btn.h>
 #include "../gfx/gfx.h"

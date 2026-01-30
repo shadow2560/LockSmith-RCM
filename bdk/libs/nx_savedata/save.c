@@ -101,7 +101,7 @@ static bool save_process_header(save_ctx_t *ctx) {
     uint8_t hash[0x20] __attribute__((aligned(4)));
     uint32_t hashed_data_offset = sizeof(ctx->header.layout) + sizeof(ctx->header.cmac) + sizeof(ctx->header._0x10);
     uint32_t hashed_data_size = sizeof(ctx->header) - hashed_data_offset;
-    se_calc_sha256_oneshot(hash, (uint8_t *)&ctx->header + hashed_data_offset, hashed_data_size);
+    se_sha_hash_256_oneshot(hash, (uint8_t *)&ctx->header + hashed_data_offset, hashed_data_size);
     ctx->header_hash_validity = memcmp(hash, ctx->header.layout.hash, sizeof(hash)) == 0 ? VALIDITY_VALID : VALIDITY_INVALID;
 
     uint8_t cmac[0x10] __attribute__((aligned(4)));
@@ -326,7 +326,7 @@ bool save_commit(save_ctx_t *ctx) {
     uint32_t hashed_data_offset = sizeof(ctx->header.layout) + sizeof(ctx->header.cmac) + sizeof(ctx->header._0x10);
     uint32_t hashed_data_size = sizeof(ctx->header) - hashed_data_offset;
     uint8_t *header = (uint8_t *)&ctx->header;
-    se_calc_sha256_oneshot(ctx->header.layout.hash, header + hashed_data_offset, hashed_data_size);
+    se_sha_hash_256_oneshot(ctx->header.layout.hash, header + hashed_data_offset, hashed_data_size);
 
     se_aes_key_set(10, ctx->save_mac_key, 0x10);
     se_aes_cmac(10, ctx->header.cmac, 0x10, &ctx->header.layout, sizeof(ctx->header.layout));

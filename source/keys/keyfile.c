@@ -45,7 +45,7 @@ bool GetKeysFromFile(char *path, key_storage_t* dumpedKeys) {
 		return false;
 	}
 
-	LIST_INIT(iniList); // Whatever we'll just let this die in memory hell
+	LIST_INIT(iniList);
 	if (!ini_parse(&iniList, path, false)) {
 		debug_log_write("Init parse error in bis keys extract via file\n");
 		return false;
@@ -67,9 +67,17 @@ bool GetKeysFromFile(char *path, key_storage_t* dumpedKeys) {
 		ini_free(&iniList);
 		return false;
 	}
-	// AddKey(dumpedKeys->master_key, getKey("master_key_00", &iniList), SE_KEY_128_SIZE);
-	// AddKey(dumpedKeys->header_key, getKey("header_key", &iniList), SE_KEY_128_SIZE * 2);
-	// AddKey(dumpedKeys->save_mac_key, getKey("save_mac_key", &iniList), SE_KEY_128_SIZE);
+	if (!AddKey(dumpedKeys->header_key, getKey("header_key", &iniList), SE_KEY_128_SIZE * 2)) {
+		debug_log_write("header key extract via file error\n");
+		ini_free(&iniList);
+		return false;
+	}
+	if (!AddKey(dumpedKeys->save_mac_key, getKey("save_mac_key", &iniList), SE_KEY_128_SIZE)) {
+		debug_log_write("header key extract via file error\n");
+		ini_free(&iniList);
+		return false;
+	}
+	// AddKey(dumpedKeys->master_key[0], getKey("master_key_00", &iniList), SE_KEY_128_SIZE);
 
 	gfx_puts(" Done");
 	debug_log_write("bis key extract via file success\n");

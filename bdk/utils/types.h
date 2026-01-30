@@ -87,18 +87,13 @@ typedef unsigned long uptr;
 #define SZ_PAGE SZ_4K
 
 /* Macros */
-#define ALWAYS_INLINE inline __attribute__((always_inline))
 #define ALIGN(x, a) (((x) + (a) - 1) & ~((a) - 1))
 #define ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 #define BIT(n) (1U << (n))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define DIV_ROUND_UP(a, b) ((a + b - 1) / b)
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-#define LOG2(n) (32 - __builtin_clz(n) - 1)
-#define CLZ(n) __builtin_clz(n)
-#define CLO(n) __builtin_clz(~n)
 
 #define OFFSET_OF(t, m) ((uptr)&((t *)NULL)->m)
 #define CONTAINER_OF(mp, t, mn) ((t *)((uptr)mp - OFFSET_OF(t, mn)))
@@ -178,6 +173,11 @@ typedef struct __attribute__((__packed__)) _reloc_meta_t
 	u32 end;
 	u32 ep;
 } reloc_meta_t;
+
+// from old bdk
+
+#define ALWAYS_INLINE inline __attribute__((always_inline))
+#define DIV_ROUND_UP(a, b) ((a + b - 1) / b)
 
 typedef enum
 {

@@ -68,18 +68,19 @@ void es_derive_rsa_kek_original(key_storage_t *keys, void *out_rsa_kek, bool is_
 }
 
 bool decrypt_eticket_rsa_key(key_storage_t *keys, void *buffer, bool is_dev) {
-	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, buffer)) {
+	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, buffer, NULL)) {
 		return false;
 	}
 
-	nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)buffer;
+	// nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)buffer;
 	u32 generation = 0;
 	const void *encrypted_key = NULL;
 	const void *iv = NULL;
 	u32 key_size = 0;
 	void *ctr_key = NULL;
 
-	if (!cal0_get_eticket_rsa_key(cal0, &encrypted_key, &key_size, &iv, &generation)) {
+	// if (!cal0_get_eticket_rsa_key(cal0, &encrypted_key, &key_size, &iv, &generation)) {
+	if (!cal0_get_eticket_rsa_key(buffer, &encrypted_key, &key_size, &iv, &generation)) {
 		return false;
 	}
 
@@ -90,7 +91,7 @@ bool decrypt_eticket_rsa_key(key_storage_t *keys, void *buffer, bool is_dev) {
 		ctr_key = temp_key;
 
 		se_aes_key_set(KS_AES_CTR, ctr_key, SE_KEY_128_SIZE);
-		se_aes_crypt_ctr(KS_AES_CTR, &keys->eticket_rsa_keypair, sizeof(keys->eticket_rsa_keypair), encrypted_key, sizeof(keys->eticket_rsa_keypair), (void*) iv);
+		se_aes_crypt_ctr(KS_AES_CTR, &keys->eticket_rsa_keypair, encrypted_key, sizeof(keys->eticket_rsa_keypair), (void*) iv);
 
 		if (test_eticket_rsa_keypair(&keys->eticket_rsa_keypair)) {
 			memcpy(keys->eticket_rsa_kek, ctr_key, sizeof(keys->eticket_rsa_kek));
@@ -107,10 +108,10 @@ bool decrypt_eticket_rsa_key(key_storage_t *keys, void *buffer, bool is_dev) {
 	}
 
 	se_aes_key_set(KS_AES_CTR, ctr_key, SE_KEY_128_SIZE);
-	se_aes_crypt_ctr(KS_AES_CTR, &keys->eticket_rsa_keypair, sizeof(keys->eticket_rsa_keypair), encrypted_key, sizeof(keys->eticket_rsa_keypair), (void*) iv);
+	se_aes_crypt_ctr(KS_AES_CTR, &keys->eticket_rsa_keypair, encrypted_key, sizeof(keys->eticket_rsa_keypair), (void*) iv);
 
 	if (!test_eticket_rsa_keypair(&keys->eticket_rsa_keypair)) {
-		log_printf(LOG_ERR, LOG_MSG_KEYS_DUMP_INVALID_TICKET_KEYPAIR);
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_INVALID_TICKET_KEYPAIR);
 		memset(&keys->eticket_rsa_keypair, 0, sizeof(keys->eticket_rsa_keypair));
 		return false;
 	}

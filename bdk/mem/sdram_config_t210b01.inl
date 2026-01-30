@@ -16,7 +16,7 @@
 
 #define DRAM_CFG_T210B01_SIZE 2104
 
-static sdram_params_t210b01_t _dram_cfg_08_10_12_14_samsung_hynix_4gb = {
+static const sdram_params_t210b01_t _dram_cfg_08_10_12_14_samsung_hynix_4gb = {
 	/* Specifies the type of memory device */
 	.memory_type                                     = MEMORY_TYPE_LPDDR4,
 

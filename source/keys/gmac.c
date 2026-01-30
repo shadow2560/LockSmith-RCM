@@ -124,7 +124,7 @@ static void _ghash(u32 ks, void *dst, const void *src, u32 src_size, const void 
 
 void calc_gmac(u32 ks, void *out_gmac, const void *data, u32 size, const void *key, const void *iv) {
 	u32 j_block[4] = {0};
-	se_aes_key_set(ks, key, 0x10);
+	if (key != NULL) se_aes_key_set(ks, key, 0x10);
 	_ghash(ks, j_block, iv, 0x10, NULL, false);
 	_ghash(ks, out_gmac, data, size, j_block, true);
 }

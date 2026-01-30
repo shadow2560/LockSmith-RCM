@@ -25,7 +25,8 @@ extern bool have_minerva;
 #define BIS_CLUSTER_SECTORS   32
 #define MAX_PATH_LEN    256
 extern u32 COPY_BUF_SIZE;
-#define RAM_COPY_BUF_SIZE (8 * 1024 * 1024)
+extern BYTE* copy_buf;
+extern u8* cal0_buf;
 
 typedef struct {
 	u32 x;
@@ -37,6 +38,22 @@ typedef struct {
 	char *base_path;
 } emunand_entry_t;
 #define MAX_EMUNANDS 12
+
+#define MAX_STACK_DEPTH 12
+typedef struct {
+	char path[MAX_PATH_LEN];
+	BYTE stage;   // 0 = scan, 1 = delete dir itself
+} dir_stack_t;
+
+typedef struct {
+	DIR  dir[MAX_STACK_DEPTH];
+	char src_stack[MAX_STACK_DEPTH][MAX_PATH_LEN];
+	char dst_stack[MAX_STACK_DEPTH][MAX_PATH_LEN];
+	char src[MAX_PATH_LEN];
+	char dst[MAX_PATH_LEN];
+	FILINFO fno[MAX_STACK_DEPTH];
+	// BYTE *copy_buf;
+} cp_rm_ctx_t;
 
 extern hekate_config h_cfg;
 extern bool physical_emmc_ok;
@@ -52,11 +69,6 @@ extern int emunand_count;
 extern int prev_sec_emunand;
 extern int cur_sec_emunand;
 extern emunand_entry_t *emunands;
-
-extern power_state_t STATE_POWER_OFF;
-extern power_state_t STATE_REBOOT_FULL;
-extern power_state_t STATE_REBOOT_RCM;
-extern power_state_t STATE_REBOOT_BYPASS_FUSES;
 
 /* Legacy color definitions - Kept for backward compatibility */
 #define COLOR_RED    0xFFFF0000  // Now matches Hekate TXT_CLR_ERROR
@@ -97,7 +109,8 @@ extern power_state_t STATE_REBOOT_BYPASS_FUSES;
 #endif
 
 char *bdk_strdup(const char *s);
-void mkdir_recursive(const char *path);
+FRESULT mkdir_recursive(const char *path);
+bool verifyProdinfo(u8 *blob);
 void debug_log_start_impl();
 void debug_log_write_impl(const char *text, ...);
 bool get_emmc_id(char *emmc_id_out);
@@ -108,10 +121,10 @@ bool delete_save_from_nand(const char* savename, bool on_system_part);
 void ui_spinner_begin();
 void ui_spinner_draw();
 void ui_spinner_clear();
-bool flash_or_dump_part(bool flash, const char *sd_filepath, const char *part_name, bool file_encrypted);
+bool flash_or_dump_part(bool flash, const char *sd_filepath, const char *part_name, bool bis_read_or_write_enable);
 FRESULT easy_rename(const char* old, const char* new);
-FRESULT f_copy(const char *src, const char *dst, BYTE *buf);
-bool f_transfer_from_nands(const char *file_path, bool on_system_part); // limited to transfer a 8 MB file max
+FRESULT f_copy(const char *src, const char *dst);
+bool f_transfer_from_nands(const char *file_path, bool on_system_part);
 void save_screenshot_and_go_back(const char* filename);
 void display_title();
 void cls();

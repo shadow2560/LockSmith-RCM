@@ -3,6 +3,8 @@
 
 #include <utils/types.h>
 
+#define KEYSLOT_SWITCH_TEMPKEY 0x9
+
 extern const u32 MINIMUM_PRODINFO_SIZE;
 extern const u32 MAXIMUM_PRODINFO_SIZE;
 
@@ -24,23 +26,17 @@ void write_speaker_calibration_value(u8 *prodinfo_buffer);
 void write_short_values(u8 *prodinfo_buffer, u32 display_id);
 void write_console_colors(u8 *prodinfo_buffer, u64 device_id);
 
-void write_all_crc(u8 *prodinfo_buffer, u32 prodinfo_size);
-void write_all_sha256(u8 *prodinfo_buffer);
-void write_body_checksum(u8 *prodinfo_buffer);
 
 // Check
 bool valid_prodinfo_checksums(u8 *prodinfo_buffer, u32 prodinfo_size);
 bool valid_own_prodinfo(u8 *prodinfo_buffer, u32 prodinfo_size, u8 *master_key);
 
-bool valid_base_crcs(u8 *prodinfo_buffer, u32 prodinfo_size);
 bool valid_extended_rsa_2048_eticket_key(u8 *prodinfo_buffer, u8 *master_key);
 bool valid_extended_ecc_b233_device_key(u8 *prodinfo_buffer, u8 *master_key);
-bool valid_ecc_b233_device_certificate(u8 *prodinfo_buffer);
-bool valid_rsa_2048_eticket_certificate(u8 *prodinfo_buffer);
+// bool valid_ecc_b233_device_certificate(u8 *prodinfo_buffer);
+// bool valid_rsa_2048_eticket_certificate(u8 *prodinfo_buffer);
 bool valid_cal0_signature(u8 *prodinfo_buffer, u32 prodinfo_size);
-bool valid_body_checksum(u8 *prodinfo_buffer, u32 prodinfo_size);
 bool valid_extended_gamecard_key(u8 *prodinfo_buffer, u8 *master_key);
-bool valid_sha256_blocks(u8 *prodinfo_buffer, u32 prodinfo_size);
 
 // Import
 void import_gamecard_certificate(u8 *donor_prodinfo_buffer, u8 *prodinfo_buffer);

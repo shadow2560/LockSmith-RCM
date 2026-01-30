@@ -28,7 +28,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sec/se_t210.h>
 #include <storage/sd.h>
 
-#include "gcm.h"
 #include "../hos/hos.h"
 #include "../keys/crypto.h"
 #include "../keys/key_sources.inl"

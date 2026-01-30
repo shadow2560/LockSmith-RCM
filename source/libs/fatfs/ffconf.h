@@ -38,7 +38,7 @@
 /  f_findnext(). (0:Disable, 1:Enable 2:Enable with matching altname[] too) */
 
 
-#define FF_USE_MKFS		1
+#define FF_USE_MKFS		0
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
 
 #define FF_FASTFS		0
@@ -50,6 +50,8 @@
 #endif
 /* This option switches fast seek function. (0:Disable or 1:Enable) */
 
+#define FF_SIMPLE_GPT 1
+/* This option switches support for the first GPT partition. (0:Disable or 1:Enable) */
 
 #define FF_USE_EXPAND	0
 /* This option switches f_expand function. (0:Disable or 1:Enable) */

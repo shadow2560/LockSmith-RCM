@@ -46,20 +46,21 @@
 #include <string.h>
 
 #include "../tools.h"
-#include "../prodinfogen/crc16.h"
+#include "../gfx/messages.h"
+#include "../prodinfo_rewrite/prodinfo_rewrite.h"
 
 #define RETRY_COUNT 5
-#define RETRY(exp)                                                                              \
-	({                                                                                          \
-		u8 _attemptc_ = RETRY_COUNT;                                                            \
-		bool _resultb_ = false;                                                                 \
-		while (_attemptc_--)                                                                    \
-		{                                                                                       \
-			if ((_resultb_ = exp))                                                              \
-				break;                                                                          \
-			gfx_printf("%kretry %d/%d...\n", COLOR_RED, RETRY_COUNT - _attemptc_, RETRY_COUNT); \
-		}                                                                                       \
-		_resultb_;                                                                              \
+#define RETRY(exp) \
+	({ \
+		u8 _attemptc_ = RETRY_COUNT; \
+		bool _resultb_ = false; \
+		while (_attemptc_--) \
+		{ \
+			if ((_resultb_ = exp)) \
+				break; \
+			log_printf(false, LOG_ERR, LOG_MSG_INCOGNITO_RETRY_DEF, RETRY_COUNT - _attemptc_, RETRY_COUNT); \
+		} \
+		_resultb_; \
 	})
 
 #define SECTORS_IN_CLUSTER 32
@@ -67,206 +68,87 @@
 #define BACKUP_NAME_EMUNAND "sd:/prodinfo_emunand.bin"
 #define BACKUP_NAME_SYSNAND "sd:/prodinfo_sysnand.bin"
 
-u16 calculateCrc(u32 offset, u32 size, u8 *blob)
-{
-	unsigned char buffer[size + 1];
-	if (blob == NULL)
-		readData((u8 *)buffer, offset, size, NULL);
-	else
-		memcpy((u8 *)buffer, blob + offset, size);
-
-	return get_crc_16(buffer, size);
-}
-
-u16 readCrc(u32 offset, u8 *blob)
-{
-	u16 buffer;
-	if (blob == NULL)
-		readData((u8 *)&buffer, offset, sizeof(u16), NULL);
-	else
-		memcpy((u8 *)&buffer, blob + offset, sizeof(u16));
-	
-	return buffer;
-}
-
-bool validateCrc(u32 offset, u32 size, u8 *blob)
-{
-	return calculateCrc(offset, size, blob) == readCrc(offset + size, blob);
-}
-
-bool calculateAndWriteCrc(u32 offset, u32 size)
-{
-	u16 crcValue = calculateCrc(offset, size, NULL);
-	u8 crc[2] = { crcValue & 0xff, crcValue >> 8 }; // bytes of u16
-	return writeData(crc, offset + size, sizeof(u16), NULL);
-}
-
-void validateChecksums(u8 *blob)
-{
-	if (!validateCrc(0x0250, 0x1E, blob))
-		gfx_printf("%kWarning - invalid serial crc\n", COLOR_RED);
-
-	if (!validateCrc(0x0480, 0x18E, blob))
-		gfx_printf("%kWarning - invalid ECC-B233 crc...\n", COLOR_RED);
-
-	if (!validateCrc(0x3AE0, 0x13E, blob))
-		gfx_printf("%kWarning - invalid ext SSL key crc...\n", COLOR_RED);
-
-	if (!validateCrc(0x35A0, 0x07E, blob))
-		gfx_printf("%kWarning - invalid ECDSA cert crc...\n", COLOR_RED);
-
-	if (!validateCrc(0x36A0, 0x09E, blob))
-		gfx_printf("%kWarning - invalid ECQV-BLS cert crc...\n", COLOR_RED);
-}
-
-bool erase(u32 offset, u32 length)
-{
-	u8 *tmp = (u8 *)calloc(length, sizeof(u8));
-	bool result = writeData(tmp, offset, length, NULL);
-	free(tmp);
-	return result;
-}
-
-bool writeSerial()
-{
-	const char *junkSerial;
-	if (menu_on_sysnand)
-	{
-		junkSerial = "XAW00000000000";
-	}
-	else
-	{
-		junkSerial = "XAW00000000001";
-	}
-
-	const u32 serialOffset = 0x250;
-	if (!writeData((u8 *)junkSerial, serialOffset, 14, NULL))
-		return false;
-
-	return calculateAndWriteCrc(serialOffset, 0x1E);
-}
-
-bool incognito()
-{
-	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
-		return false;
-	}
-	/*
-	void* cal0_buf;
-	if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf)) {
-		goto out;
-	}
-	nx_emmc_cal0_t *cal0 = (nx_emmc_cal0_t *)cal0_buf;
-	*/
-
-	/*
-	gfx_printf("%kChecking if backup exists...\n", COLOR_YELLOW);
-	if (!checkBackupExists())
-	{
-		gfx_printf("%kI'm sorry Dave, I'm afraid I can't do that..\n%kWill make a backup first...\n", COLOR_RED, COLOR_YELLOW);
-		if (!backupProdinfo()) {
-			goto out;
-		}
-	}
-	*/
-
-	validateChecksums(NULL);
-
-	// gfx_printf("%kWriting fake serial...\n", COLOR_YELLOW);
-	if (!writeSerial()) {
-		goto out;
-	}
-/*
-	// gfx_printf("%kErasing ECC-B233 device cert...\n", COLOR_YELLOW);
-	if (!erase(0x0480, 0x180)) {
-		goto out;
-	}
-
-	if (!calculateAndWriteCrc(0x0480, 0x18E)) { // whatever I do here, it crashes Atmos..?
-		goto out;
-	}
-*/
-	// gfx_printf("%kErasing SSL cert...\n", COLOR_YELLOW);
-	if (!erase(0x0AE0, 0x800)) {
-		goto out;
-	}
-
-	// gfx_printf("%kErasing extended SSL key...\n", COLOR_YELLOW);
-	if (!erase(0x3AE0, 0x130)) {
-		goto out;
-	}
-
-	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
-	if (!calculateAndWriteCrc(0x3AE0, 0x13E)) {
-		goto out;
-	}
-
-	// gfx_printf("%kErasing Amiibo ECDSA cert...\n", COLOR_YELLOW);
-	if (!erase(0x35A0, 0x070)) {
-		goto out;
-	}
-
-	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
-	if (!calculateAndWriteCrc(0x35A0, 0x07E)) {
-		goto out;
-	}
-
-	// gfx_printf("%kErasing Amiibo ECQV-BLS root cert...\n", COLOR_YELLOW);
-	if (!erase(0x36A0, 0x090)) {
-		goto out;
-	}
-
-	// gfx_printf("%kWriting checksum...\n", COLOR_YELLOW);
-	if (!calculateAndWriteCrc(0x36A0, 0x09E)) {
-		goto out;
-	}
-
-	/* Doesn't work for mariko
-	// gfx_printf("%kErasing RSA-2048 extended device key...\n", COLOR_YELLOW);
-	if (!erase(0x3D70, 0x240)) { // seems empty & unused!
-		goto out;
-	}
-
-	// gfx_printf("%kErasing RSA-2048 device certificate...\n", COLOR_YELLOW);
-	if (!erase(0x3FC0, 0x240)) { // seems empty & unused!
-		goto out;
-	}
-	*/
-
-	// gfx_printf("%kWriting SSL cert hash...\n", COLOR_YELLOW);
-	if (!writeClientCertHash()) {
-		goto out;
-	}
-
-	// gfx_printf("%kWriting body hash...\n", COLOR_YELLOW);
-	if (!writeCal0Hash()) {
-		goto out;
-	}
-
-	gfx_printf("\n%kIncognito done!\n", COLOR_GREEN);
-	unmount_nand_part(&gpt, false, true, true, false);
-	save_screenshot_and_go_back("incognito");
-	return true;
-
-out:
-	gfx_printf("\n%kIncognito error!\n", COLOR_RED);
-	unmount_nand_part(&gpt, false, true, true, false);
-	save_screenshot_and_go_back("incognito");
-	return false;
-}
-
-u32 divideCeil(u32 x, u32 y)
-{
-	return 1 + ((x - 1) / y);
-}
-
 static inline u32 _read_le_u32(const void *buffer, u32 offset)
 {
 	return (*(u8 *)(buffer + offset + 0)) |
 		   (*(u8 *)(buffer + offset + 1) << 0x08) |
 		   (*(u8 *)(buffer + offset + 2) << 0x10) |
 		   (*(u8 *)(buffer + offset + 3) << 0x18);
+}
+
+bool incognito()
+{
+	LIST_INIT(gpt);
+	if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL))
+		return false;
+
+	bool ok = false;
+
+	/* Read full PRODINFO partition into memory, apply mutations on DATA fields only,
+	 * then rewrite all CRC/SHA fields using the shared table, verify, and finally write back once.
+	 */
+	/*
+	u8 *cal0_buf = (u8 *)malloc(NX_EMMC_CALIBRATION_SIZE);
+	if (!cal0_buf)
+		goto out;
+	*/
+
+	// if (!readData(cal0_buf, 0, NX_EMMC_CALIBRATION_SIZE, NULL))
+		if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf, NULL))
+		goto out;
+
+	/* Optional pre-check: log warnings if input already has checksum issues */
+	verifyProdinfo(cal0_buf);
+
+	/* 1) Fake serial (DATA field) */
+	const char *junkSerial = menu_on_sysnand ? "XAW00000000000" : "XAW00000000001";
+	prodinfo_write_data(cal0_buf, NX_EMMC_CALIBRATION_SIZE, PI_F_SerialNumber, junkSerial, 14);
+
+	/* 2) Erase SSL certificate (DATA field) */
+	prodinfo_zero_data(cal0_buf, NX_EMMC_CALIBRATION_SIZE, PI_F_SslCertificate);
+
+	/* 3) Erase extended SSL key (DATA field) */
+	prodinfo_zero_data(cal0_buf, NX_EMMC_CALIBRATION_SIZE, PI_F_ExtendedSslKey);
+
+	/* 4) Erase Amiibo ECDSA certificate (DATA field) */
+	prodinfo_zero_data(cal0_buf, NX_EMMC_CALIBRATION_SIZE, PI_F_AmiiboEcdsaCertificate);
+
+	/* 5) Erase Amiibo ECQV-BLS root certificate (DATA field) */
+	prodinfo_zero_data(cal0_buf, NX_EMMC_CALIBRATION_SIZE, PI_F_AmiiboEcqvBlsRootCertificate);
+
+	/* Rewrite all CRC/SHA fields consistently */
+	if (prodinfo_verify_or_rewrite_hashes(cal0_buf, NX_EMMC_CALIBRATION_SIZE, NULL, cal0_buf, NX_EMMC_CALIBRATION_SIZE) != PI_OK)
+	// if (prodinfo_rewrite_hashes(cal0_buf, NX_EMMC_CALIBRATION_SIZE, cal0_buf, NX_EMMC_CALIBRATION_SIZE) != PI_OK)
+		goto out;
+
+	/* Verify post-rewrite */
+	if (!verifyProdinfo(cal0_buf))
+		goto out;
+
+	/* Write back once */
+	if (!writeData(cal0_buf, 0, NX_EMMC_CALIBRATION_SIZE, NULL))
+		goto out;
+
+	ok = true;
+
+out:
+	/*
+	if (cal0_buf)
+		free(pi);
+	*/
+
+	if (ok)
+	{
+		log_printf(true, LOG_OK, LOG_MSG_INCOGNITO_SUCCESS);
+		unmount_nand_part(&gpt, false, true, true, false);
+		save_screenshot_and_go_back("incognito");
+		return true;
+	}
+
+	log_printf(true, LOG_ERR, LOG_MSG_INCOGNITO_ERR);
+	unmount_nand_part(&gpt, false, true, true, false);
+	save_screenshot_and_go_back("incognito");
+	return false;
 }
 
 bool readData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32, u32))
@@ -279,7 +161,7 @@ bool readData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32,
 	u32 sector = (offset / EMMC_BLOCKSIZE);
 	u32 newOffset = (offset % EMMC_BLOCKSIZE);
 
-	u32 sectorCount = divideCeil(newOffset + length, EMMC_BLOCKSIZE);
+	u32 sectorCount = (newOffset + length + (EMMC_BLOCKSIZE - 1)) / EMMC_BLOCKSIZE;
 
 	u8 *tmp = (u8 *)malloc(sectorCount * EMMC_BLOCKSIZE);
 
@@ -413,7 +295,7 @@ bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32
 
 	if (length > EMMC_BLOCKSIZE)
 	{
-		gfx_printf("%kERROR, ERRO! Length is %d!\n", COLOR_RED, length);
+		log_printf(true, LOG_ERR, LOG_MSG_INCOGNITO_ERR_WRITE, length);
 		goto out;
 	}
 
@@ -434,165 +316,6 @@ out:
 	free(tmp_sec);
 	free(tmp);
 	return result;
-}
-
-bool writeHash(u32 hashOffset, u32 offset, u32 sz)
-{
-	bool result = false;
-	u8 *buffer = (u8 *)malloc(sz);
-	if (!readData(buffer, offset, sz, NULL))
-	{
-		goto out;
-	}
-	u8 hash[0x20];
-	se_calc_sha256_oneshot(hash, buffer, sz);
-
-	if (!writeData(hash, hashOffset, 0x20, NULL))
-	{
-		goto out;
-	}
-	result = true;
-out:
-	free(buffer);
-	return result;
-}
-
-bool verifyHash(u32 hashOffset, u32 offset, u32 sz, u8 *blob)
-{
-	bool result = false;
-	u8 *buffer = (u8 *)malloc(sz);
-	if (blob == NULL)
-	{
-		if (!readData(buffer, offset, sz, NULL))
-			goto out;
-	}
-	else
-	{
-		memcpy(buffer, blob + offset, sz);
-	}
-	u8 hash1[0x20];
-	se_calc_sha256_oneshot(hash1, buffer, sz);
-
-	u8 hash2[0x20];
-
-	if (blob == NULL)
-	{
-		if (!readData(hash2, hashOffset, 0x20, NULL))
-			goto out;
-	}
-	else
-	{
-		memcpy(hash2, blob + hashOffset, 0x20);
-	}
-
-	if (memcmp(hash1, hash2, 0x20) != 0)
-	{
-		EPRINTF("error: hash verification failed\n");
-		// gfx_hexdump(0, hash1, 0x20);
-		// gfx_hexdump(0, hash2, 0x20);
-		goto out;
-	}
-
-	result = true;
-out:
-	free(buffer);
-	return result;
-}
-
-s32 getClientCertSize(u8 *blob)
-{
-	s32 buffer;
-	if (blob == NULL)
-	{
-		if (!RETRY(readData((u8 *)&buffer, 0x0AD0, sizeof(buffer), NULL)))
-		{
-			return -1;
-		}
-	}
-	else
-	{
-		memcpy(&buffer, blob + 0x0AD0, sizeof(buffer));
-	}
-	return buffer;
-}
-
-s32 getCalibrationDataSize(u8 *blob)
-{
-	s32 buffer;
-	if (blob == NULL)
-	{
-		if (!RETRY(readData((u8 *)&buffer, 0x08, sizeof(buffer), NULL)))
-		{
-			return -1;
-		}
-	}
-	else
-	{
-		memcpy(&buffer, blob + 0x08, sizeof(buffer));
-	}
-
-	return buffer;
-}
-
-bool writeCal0Hash()
-{
-	s32 calibrationSize = getCalibrationDataSize(NULL);
-	if (calibrationSize == -1)
-		return false;
-
-	return writeHash(0x20, 0x40, calibrationSize);
-}
-
-bool writeClientCertHash()
-{
-	s32 certSize = getClientCertSize(NULL);
-	if (certSize == -1)
-		return false;
-
-	return writeHash(0x12E0, 0xAE0, certSize);
-}
-
-bool verifyCal0Hash(u8 *blob)
-{
-	s32 calibrationSize = getCalibrationDataSize(blob);
-	if (calibrationSize == -1)
-		return false;
-
-	return verifyHash(0x20, 0x40, calibrationSize, blob);
-}
-
-bool verifyClientCertHash(u8 *blob)
-{
-	s32 certSize = getClientCertSize(blob);
-	if (certSize == -1)
-		return false;
-
-	return verifyHash(0x12E0, 0xAE0, certSize, blob);
-}
-
-bool verifyProdinfo(u8 *blob)
-{
-	gfx_printf("%kVerifying client cert hash and CAL0 hash%s...\n", COLOR_YELLOW, blob != NULL ? "\nfrom backup" : "");
-
-	if (verifyClientCertHash(blob) && verifyCal0Hash(blob))
-	{
-		validateChecksums(blob);
-
-		char serial[15] = "";
-		if (blob == NULL)
-		{
-			readData((u8 *)serial, 0x250, 14, NULL);
-		}
-		else
-		{
-			memcpy(serial, blob + 0x250, 14);
-		}
-
-		gfx_printf("%kVerification successful!\n%kSerial:%s\n", COLOR_GREEN, COLOR_BLUE, serial);
-		return true;
-	}
-	gfx_printf("%kVerification not successful!\n", COLOR_RED);
-	return false;
 }
 
 bool checkBackupExists()

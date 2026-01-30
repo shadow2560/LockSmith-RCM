@@ -48,8 +48,11 @@
 
 #include "fuse_check/fuse_check.h"
 #include "incognito/incognito.h"
+#include "keys/cal0_read.h"
 #include "keys/keys.h"
+#include "prodinfo_rewrite/prodinfo_rewrite.h"
 #include "prodinfogen/build_prodinfo.h"
+// #include "saves_dump/save_backup.h"
 #include "unbrick/unbrick.h"
 
 #include "tools.h"
@@ -85,18 +88,24 @@ int cur_sec_emunand = 0;
 emunand_entry_t *emunands = NULL;
 bool have_sd = false;
 bool have_minerva = false;
-u32 COPY_BUF_SIZE;
+u32 COPY_BUF_SIZE = 0x10000;
+BYTE* copy_buf;
+u8* cal0_buf;
 
 typedef struct {
-	const char *path;
+	const char *name;
 	void (*func)(void);
-	bool emunand;
+	bool possible_on_emunand;
 } auto_action_t;
 
-static void run_auto_action(const auto_action_t *a)
-{
+static void run_auto_action(const auto_action_t *a, bool on_emunand) {
+	const char *auto_base = "sd:/LockSmith-RCM/";
+	char path[128];
+	const char *nand = (on_emunand) ? "emunand" : "sysnand";
+	s_printf(path, "%s%s_%s", auto_base, a->name, nand);
+
 	sd_mount();
-	if (f_stat(a->path, NULL) != FR_OK) {
+	if (f_stat(path, NULL) != FR_OK) {
 		return;
 	}
 
@@ -104,51 +113,56 @@ static void run_auto_action(const auto_action_t *a)
 		called_from_config_files = true;
 		log_init();
 		if (bis_from_console) {
-			log_printf(LOG_INFO, LOG_MSG_BIS_VIA_CONSOLE);
+			log_printf(true, LOG_INFO, LOG_MSG_BIS_VIA_CONSOLE);
 		} else {
-			log_printf(LOG_INFO, LOG_MSG_BIS_VIA_FILE);
+			log_printf(true, LOG_INFO, LOG_MSG_BIS_VIA_FILE);
 		}
 		if (sysmmc_available) {
-			log_printf(LOG_INFO, LOG_MSG_SYSMMC_AVAILABLE);
+			log_printf(true, LOG_INFO, LOG_MSG_SYSMMC_AVAILABLE);
 		}
 		if (emummc_available) {
-			log_printf(LOG_INFO, LOG_MSG_EMUMMC_AVAILABLE);
+			log_printf(true, LOG_INFO, LOG_MSG_EMUMMC_AVAILABLE);
 			if (emu_cfg.sector <= 0) {
-				log_printf(LOG_INFO, LOG_MSG_EMUMMC_PATH, emu_cfg.path);
+				log_printf(true, LOG_INFO, LOG_MSG_EMUMMC_PATH, emu_cfg.path);
 			} else {
-				log_printf(LOG_INFO, LOG_MSG_EMUMMC_SECTOR, (u32)emu_cfg.sector);
+				log_printf(true, LOG_INFO, LOG_MSG_EMUMMC_SECTOR, (u32)emu_cfg.sector);
 			}
-			log_printf(LOG_INFO, LOG_MSG_EMUMMC_NINTENDO_PATH, emu_cfg.nintendo_path);
+			log_printf(true, LOG_INFO, LOG_MSG_EMUMMC_NINTENDO_PATH, emu_cfg.nintendo_path);
 		}
-		log_printf(LOG_INFO, LOG_MSG_BATCH_BEGIN);
+		log_printf(true, LOG_INFO, LOG_MSG_BATCH_BEGIN);
 		cls();
 	}
 
-	if (a->emunand && !emummc_available) {
-		log_printf(LOG_ERR, LOG_MSG_ERR_EMUMMC_NOT_AVAILABLE);
+	if (on_emunand && !a->possible_on_emunand) {
 		return;
 	}
 
-	if (!a->emunand && !sysmmc_available) {
-		log_printf(LOG_ERR, LOG_MSG_ERR_SYSMMC_NOT_AVAILABLE);
-		return;
+	if (on_emunand && !emummc_available) {
+		log_printf(true, LOG_ERR, LOG_MSG_ERR_EMUMMC_NOT_AVAILABLE);
+		goto out;
 	}
 
-	h_cfg.emummc_force_disable = !a->emunand;
-	emu_cfg.enabled = a->emunand;
-	menu_on_sysnand = !a->emunand;
+	if (!on_emunand && !sysmmc_available) {
+		log_printf(true, LOG_ERR, LOG_MSG_ERR_SYSMMC_NOT_AVAILABLE);
+		goto out;
+	}
+
+	h_cfg.emummc_force_disable = !on_emunand;
+	emu_cfg.enabled = on_emunand;
+	menu_on_sysnand = !on_emunand;
 	get_emmc_id(emmc_id);
 
 	if (menu_on_sysnand) {
-		log_printf(LOG_WARN, LOG_MSG_NEXT_BATCH_ON_SYSNAND);
+		log_printf(true, LOG_WARN, LOG_MSG_NEXT_BATCH_ON_SYSNAND);
 	} else {
-		log_printf(LOG_WARN, LOG_MSG_NEXT_BATCH_ON_EMUNAND);
+		log_printf(true, LOG_WARN, LOG_MSG_NEXT_BATCH_ON_EMUNAND);
 	}
 
 	a->func();
 
 	sd_mount();
-	f_unlink(a->path);
+out:
+	f_unlink(path);
 }
 
 void launch_tools() {
@@ -195,7 +209,7 @@ void launch_tools() {
 					break;
 				ments[i + i_off].type = INI_CHOICE;
 				ments[i + i_off].caption = filelist->name[i];
-				ments[i + i_off].color = COLOR_WHITE;
+				ments[i + i_off].color = COLOR_SOFT_WHITE;
 				ments[i + i_off].data = filelist->name[i];
 				ments[i + i_off].enabled = 1;
 
@@ -218,7 +232,7 @@ void launch_tools() {
 				return;
 			}
 		} else
-			EPRINTF("No payloads or modules found.");
+			log_printf(false, LOG_ERR, LOG_MSG_ERR_NO_PAYLOAD_FOUND);
 
 		free(ments);
 		free(filelist);
@@ -235,7 +249,7 @@ void launch_tools() {
 			memcpy(dir, file_sec, strlen(file_sec) + 1);
 
 		launch_payload(dir, true);
-		EPRINTF("Failed to launch payload.");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_PAYLOAD_LAUNCH);
 	}
 
 out:
@@ -251,8 +265,8 @@ static void launch_hekate() {
 		launch_payload("bootloader/update.bin", false);
 	else {
 		cls();
-		EPRINTF("bootloader/update.bin not found!");
-		gfx_printf("\nPress any button to return to menu.");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_PAYLOAD_FILE_ERROR, "bootloader/update.bin");
+		log_printf(false, LOG_INFO, LOG_MSG_BACK_TO_MENU);
 		btn_wait();
 	}
 }
@@ -263,25 +277,51 @@ static void launch_reboot_payload() {
 		launch_payload("payload.bin", false);
 	else {
 		cls();
-		EPRINTF("payload.bin not found on SD root!");
-		gfx_printf("\nPress any button to return to menu.");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_PAYLOAD_FILE_ERROR, "payload.bin");
+		log_printf(false, LOG_INFO, LOG_MSG_BACK_TO_MENU);
 		btn_wait();
 	}
 }
 
 static void _ipl_reload()
 {
-	hw_deinit(false, 0);
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
+	hw_deinit(false);
 
 	// Reload payload.
 	void (*ipl_ptr)() = (void *)IPL_LOAD_ADDR;
 	(*ipl_ptr)();
 }
 
-power_state_t STATE_POWER_OFF           = POWER_OFF_RESET;
-power_state_t STATE_REBOOT_FULL         = POWER_OFF_REBOOT;
-power_state_t STATE_REBOOT_RCM          = REBOOT_RCM;
-power_state_t STATE_REBOOT_BYPASS_FUSES = REBOOT_BYPASS_FUSES;
+static void STATE_POWER_OFF() {
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
+	power_set_state(POWER_OFF_RESET);
+}
+
+static void STATE_REBOOT_FULL() {
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
+	power_set_state(POWER_OFF_REBOOT);
+}
+
+static void STATE_REBOOT_RCM() {
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
+	power_set_state(REBOOT_RCM);
+}
+
+static void STATE_REBOOT_BYPASS_FUSES() {
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
+	power_set_state(REBOOT_BYPASS_FUSES);
+}
 
 bool init_and_verify_bis_keys(bool from_file);
 
@@ -305,55 +345,52 @@ static void reload_keys() {
 }
 
 void switch_nand_work() {
-	if (!emummc_available) {
+	if ((!emummc_available) || (!sysmmc_available && !emummc_available)) {
 		h_cfg.emummc_force_disable = true;
 		emu_cfg.enabled = false;
 		menu_on_sysnand = true;
 		return;
-	}
-	if (menu_on_sysnand) {
-		select_and_apply_emunand();
-		if (emunand_count > 1 && prev_sec_emunand != cur_sec_emunand) {
-			reload_keys();
-		}
+	} else if (!sysmmc_available) {
+		h_cfg.emummc_force_disable = false;
+		emu_cfg.enabled = true;
+		menu_on_sysnand = false;
+		return;
 	} else {
-		h_cfg.emummc_force_disable = true;
-		emu_cfg.enabled = false;
-		menu_on_sysnand = true;
+		if (menu_on_sysnand) {
+			// h_cfg.emummc_force_disable = false;
+			// emu_cfg.enabled = true;
+			// menu_on_sysnand = false;
+			select_and_apply_emunand();
+			if (emunand_count > 1 && prev_sec_emunand != cur_sec_emunand) {
+				reload_keys();
+			}
+		} else {
+			h_cfg.emummc_force_disable = true;
+			emu_cfg.enabled = false;
+			menu_on_sysnand = true;
+		}
+		get_emmc_id(emmc_id);
 	}
-	get_emmc_id(emmc_id);
 }
 
 static void keys_dump() {
 	cls();
 	dump_keys(false);
-	// reload_keys();
+	reload_keys();
 }
 
 static void dump_amiibo_keys() {
 	cls();
 	derive_amiibo_keys();
-	// reload_keys();
+	reload_keys();
 }
 
+static bool mark_for_shutdown = false;
 static void dump_mariko_partial_keys() {
 	cls();
-	/*
-	gfx_printf("%kThis dumps the results of writing zeros over consecutive 32-bit portions of each keyslot, the results of which can then be bruteforced quickly on a computer to recover keys from unreadable keyslots.\n\n", colors[1]);
-	gfx_printf("%kThis includes the Mariko KEK and BEK as well as the unique SBK.\n\n", colors[2]);
-	gfx_printf("%kThese are not useful for most users but are included for archival purposes.\n\n", colors[3]);
-	gfx_printf("%kWarning: this wipes keyslots!\n", colors[4]);
-	gfx_printf("The console must be completely restarted!\n");
-	gfx_printf("Modchip must run again to fix the keys!\n\n");
-	gfx_printf("%kPress \"vol+\" to launch the dump or any other keys to cancel.\n", COLOR_WHITE);
-	*/
-	gfx_printf("%kThis dumps the results of writing zeros over consecutive 32-bit portions of each keyslot, the results of which can then be bruteforced quickly on a computer to recover keys from unreadable keyslots.\n\n \
-		This includes the Mariko KEK and BEK as well as the unique SBK.\n\n \
-	These are not useful for most users but are included for archival purposes.\n\n \
-		%kWarning: this wipes keyslots!\n \
-		The console must be completely restarted!\n \
-		Modchip must run again to fix the keys!\n\n \
-	%kPress \"vol+\" to launch the dump or any other keys to cancel.\n", COLOR_TURQUOISE, COLOR_ORANGE, COLOR_WHITE);
+	log_printf(false, LOG_INFO, LOG_MSG_MARIKO_KEYS_DUMP_INFOS_1);
+	log_printf(false, LOG_WARN, LOG_MSG_MARIKO_KEYS_DUMP_INFOS_2);
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "mariko keys dump");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -361,9 +398,15 @@ static void dump_mariko_partial_keys() {
 		int res = save_mariko_partial_keys(0, 16, false);
 		if (res == 0 || res == 3) {
 			// Force shutdown the console as the keyslots have been invalidated.
-			gfx_printf("\n%kPress a button to shutdown the console.", COLOR_ORANGE);
-			btn_wait();
-			power_set_state(POWER_OFF_RESET);
+			mark_for_shutdown = true;
+			free((BYTE*)copy_buf);
+			free((u8*)cal0_buf);
+			emunand_list_free();
+			if (!called_from_config_files) {
+				log_printf(false, LOG_WARN, LOG_MSG_PRESS_KEY_TO_SHUTDOWN);
+				btn_wait();
+				power_set_state(POWER_OFF_RESET);
+			}
 		}
 	}
 }
@@ -372,41 +415,41 @@ static void build_prodinfo_from_scratch() {
 	// return;
 	cls();
 	build_prodinfo(NULL, true);
-	// reload_keys();
+	reload_keys();
 }
 
 static void build_prodinfo_from_donor() {
 	// return;
 	cls();
 	build_prodinfo(DONOR_PRODINFO_FILENAME, true);
-	// reload_keys();
+	reload_keys();
 }
 
 static void build_and_flash_prodinfo_from_scratch() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of scratch PRODINFO");
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of scratch PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
 	build_prodinfo_and_flash(true);
-	// reload_keys();
+	reload_keys();
 }
 
 static void build_and_flash_prodinfo_from_donor() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of donor PRODINFO");
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "build and flash of donor PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
 	build_prodinfo_and_flash(false);
-	// reload_keys();
+	reload_keys();
 }
 
 static void emmchacgen_package_flash() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick");
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -415,7 +458,7 @@ static void emmchacgen_package_flash() {
 
 static void emmchacgen_package_flash_with_wip() {
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick and wip");
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "unbrick and wip");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -430,13 +473,13 @@ static void dump_prodinfo() {
 	} else {
 		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
 	}
-	flash_or_dump_part(false, path, "PRODINFO", false);
+	flash_or_dump_part(false, path, "PRODINFO", true);
 	save_screenshot_and_go_back("dump_prodinfo");
 }
 
 static void restore_prodinfo() {
 	cls();
-		log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "restore PRODINFO");
+		log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "restore PRODINFO");
 	if (!wait_vol_plus()) {
 		return;
 	}
@@ -446,48 +489,141 @@ static void restore_prodinfo() {
 	} else {
 		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
 	}
-	flash_or_dump_part(true, path, "PRODINFO", false);
+	flash_or_dump_part(true, path, "PRODINFO", true);
 	save_screenshot_and_go_back("restore_prodinfo");
 }
 
 static void apply_incognito() {
 	// return;
 	cls();
-	log_printf(LOG_INFO, LOG_MSG_FNC_BEGIN, "Incognito apply");
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "Incognito apply");
 	if (!wait_vol_plus()) {
 		return;
 	}
 	incognito();
-	// reload_keys();
 }
 
-#define AUTO_BASE "sd:/LockSmith-RCM/"
+/*
+static void dump_saves() {
+	// return;
+	cls();
+	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "saves dump");
+	if (!wait_vol_plus()) {
+		return;
+	}
+	LIST_INIT(gpt);
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		save_screenshot_and_go_back("saves_dump");
+		return;
+	}
+	extern u8 global_save_mac_key[SE_KEY_128_SIZE];
+		char path[256];
+	if (menu_on_sysnand) {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/sysnand_saves/", emmc_id);
+	} else {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/emunand_saves/", emmc_id);
+	}
+	backup_bis_save_to_sd("bis:/save", path, global_save_mac_key);
+	unmount_nand_part(&gpt, false, true, true, true);
+	save_screenshot_and_go_back("saves_dump");
+	reload_keys();
+}
+*/
+
+static void verify_and_fix_prodinfo(bool from_file) {
+	cls();
+	// u8* cal0_buf = (u8 *)malloc(NX_EMMC_CALIBRATION_SIZE);
+	LIST_INIT(gpt);
+	char path[256];
+	if (menu_on_sysnand) {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_sysnand_dec.bin", emmc_id);
+	} else {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
+	}
+	if (!from_file) {
+		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
+			// free(cal0_buf);
+			save_screenshot_and_go_back("test_prodinfo_nand");
+			return;
+		}
+		if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf, NULL)) {
+			goto out;
+		}
+	} else {
+		if (f_stat(path, NULL) != FR_OK) {
+			log_printf(true, LOG_INFO, LOG_MSG_ERR_OPEN_FILE, path);
+			goto out;
+		}
+		if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf, path)) {
+			goto out;
+		}
+	}
+	if (!verifyProdinfo(cal0_buf)) {
+		if (!from_file) {
+			log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "PRODINFO nand fix");
+		} else {
+			log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "PRODINFO backup fix");
+		}
+	} else {
+		goto out;
+	}
+	if (!wait_vol_plus()) {
+		// free(cal0_buf);
+		if (!from_file) unmount_nand_part(&gpt, false, true, true, false);
+		return;
+	}
+	if (prodinfo_verify_or_rewrite_hashes(cal0_buf, NX_EMMC_CALIBRATION_SIZE, NULL, cal0_buf, NX_EMMC_CALIBRATION_SIZE) != PI_OK) {
+	// if (prodinfo_rewrite_hashes(cal0_buf, NX_EMMC_CALIBRATION_SIZE, cal0_buf, NX_EMMC_CALIBRATION_SIZE) != PI_OK) {
+		goto out;
+	}
+	if (!from_file) {
+		if (!writeData(cal0_buf, 0, NX_EMMC_CALIBRATION_SIZE, NULL)) {
+			goto out;
+		}
+	} else {
+		if (sd_save_to_file(cal0_buf, NX_EMMC_CALIBRATION_SIZE, path) != 0) {
+			goto out;
+		}
+	}
+out:
+	// free(cal0_buf);
+	if (!from_file) {
+		unmount_nand_part(&gpt, false, true, true, false);
+		save_screenshot_and_go_back("test_prodinfo_nand");
+	} else {
+		save_screenshot_and_go_back("test_prodinfo_backup");
+	}
+}
+
+static void test_prodinfo_nand() {
+	verify_and_fix_prodinfo(false);
+}
+
+static void test_prodinfo_backup() {
+	verify_and_fix_prodinfo(false);
+}
+
 static const auto_action_t auto_actions[] = {
-	// { AUTO_BASE "dump_fw_sysnand", DumpFw, false },
-	// { AUTO_BASE "dump_fw_emunand", DumpFw, true  },
-	// { AUTO_BASE "incognito_sysnand", apply_incognito, false },
-	// { AUTO_BASE "incognito_emunand", apply_incognito, true  },
-	{ AUTO_BASE "fix_dg_sysnand", fix_downgrade, false },
-	{ AUTO_BASE "fix_dg_emunand", fix_downgrade, true  },
-	{ AUTO_BASE "wip_sysnand",    wip_nand,     false },
-	{ AUTO_BASE "wip_emunand",    wip_nand,     true  },
-	{ AUTO_BASE "rm_parental_control_sysnand",    remove_parental_control,     false },
-	{ AUTO_BASE "rm_parental_control_emunand",    remove_parental_control,     true  },
-	{ AUTO_BASE "unbrick_sysnand",    emmchacgen_package_flash,     false },
-	{ AUTO_BASE "unbrick_emunand",    emmchacgen_package_flash,     true  },
-	{ AUTO_BASE "unbrick_and_wip_sysnand",    emmchacgen_package_flash_with_wip,     false },
-	{ AUTO_BASE "unbrick_and_wip_emunand",    emmchacgen_package_flash_with_wip,     true  },
-	{ AUTO_BASE "rm_erpt_sysnand",    del_erpt_save,     false },
-	{ AUTO_BASE "rm_erpt_emunand",    del_erpt_save,     true  },
-	{ AUTO_BASE "sync_joycons_sysnand",    sync_joycons_between_nands,     false },
-	{ AUTO_BASE "sync_joycons_emunand",    sync_joycons_between_nands,     true  },
-	{ AUTO_BASE "prodinfogen_flash_scratch_sysnand",    build_and_flash_prodinfo_from_scratch,     false },
-	{ AUTO_BASE "prodinfogen_flash_scratch_emunand",    build_and_flash_prodinfo_from_scratch,     true  },
-	{ AUTO_BASE "prodinfogen_flash_donor_sysnand",    build_and_flash_prodinfo_from_donor,     false },
-	{ AUTO_BASE "prodinfogen_flash_donor_emunand",    build_and_flash_prodinfo_from_donor,     true  },
-	{ AUTO_BASE "dump_keys_sysnand",    keys_dump,     false },
-	{ AUTO_BASE "dump_keys_emunand",    keys_dump,     true  },
-	{ AUTO_BASE "dump_amiibo_keys",    dump_amiibo_keys,     false  },
+	{ "fuse_check", fuse_check, false  },
+	{ "dump_prodinfo", dump_prodinfo, true  },
+	// { "dump_saves", dump_saves, true  },
+	{ "restore_prodinfo", restore_prodinfo, true  },
+	{ "dump_fw", DumpFw, true  },
+	{ "incognito", apply_incognito, true  },
+	{ "fix_dg", fix_downgrade, true  },
+	{ "wip",    wip_nand,     true  },
+	{ "rm_parental_control",    remove_parental_control,     true  },
+	{ "unbrick",    emmchacgen_package_flash,     true  },
+	{ "unbrick_and_wip",    emmchacgen_package_flash_with_wip,     true  },
+	{ "rm_erpt",    del_erpt_save,     true  },
+	{ "sync_joycons",    sync_joycons_between_nands,     true  },
+	{ "prodinfogen_flash_scratch",    build_and_flash_prodinfo_from_scratch,     true  },
+	{ "prodinfogen_flash_donor",    build_and_flash_prodinfo_from_donor,     true  },
+	{ "test_and_fix_prodinfo_nand",    test_prodinfo_nand,     true  },
+	{ "test_and_fix_prodinfo_backup",    test_prodinfo_backup,     true  },
+	{ "dump_keys",    keys_dump,     true  },
+	{ "dump_amiibo_keys",    dump_amiibo_keys,     false  },
+	{ "dump_mariko_partial_keys",    dump_mariko_partial_keys,     false  },
 };
 
 ment_t ment_top[] = {
@@ -498,12 +634,15 @@ ment_t ment_top[] = {
 	MDEF_HANDLER("Dump keys", keys_dump, COLOR_TURQUOISE),
 	MDEF_HANDLER("Dump Amiibo keys", dump_amiibo_keys, COLOR_TURQUOISE),
 	MDEF_HANDLER("Dump Mariko Partials keys", dump_mariko_partial_keys, COLOR_TURQUOISE),
-	// MDEF_HANDLER("Dump firmware", DumpFw, COLOR_TURQUOISE),
 	MDEF_HANDLER("Fuse check", fuse_check, COLOR_TURQUOISE),
+	MDEF_HANDLER("Dump firmware", DumpFw, COLOR_TURQUOISE),
+	// MDEF_HANDLER("Dump game saves", dump_saves, COLOR_TURQUOISE),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
-	// MDEF_HANDLER("Dump PRODINFO", dump_prodinfo, COLOR_TURQUOISE),
-	// MDEF_HANDLER("Restore PRODINFO", restore_prodinfo, COLOR_RED),
-	// MDEF_HANDLER("Apply Incognito", apply_incognito, COLOR_RED),
+	MDEF_HANDLER("Dump PRODINFO", dump_prodinfo, COLOR_TURQUOISE),
+	MDEF_HANDLER("Verify and fix prodinfo nand", test_prodinfo_nand, COLOR_TURQUOISE),
+	MDEF_HANDLER("Verify and fix prodinfo backup", test_prodinfo_backup, COLOR_TURQUOISE),
+	MDEF_HANDLER("Restore PRODINFO", restore_prodinfo, COLOR_RED),
+	MDEF_HANDLER("Apply Incognito", apply_incognito, COLOR_RED),
 	MDEF_HANDLER("Build PRODINFO file from scratch", build_prodinfo_from_scratch, COLOR_TURQUOISE),
 	MDEF_HANDLER("Build PRODINFO file from donor", build_prodinfo_from_donor, COLOR_TURQUOISE),
 	MDEF_HANDLER("Build and flash PRODINFO file from scratch", build_and_flash_prodinfo_from_scratch, COLOR_RED),
@@ -521,11 +660,11 @@ ment_t ment_top[] = {
 	MDEF_HANDLER("Reboot to Hekate", launch_hekate, COLOR_TURQUOISE),
 	MDEF_HANDLER("Reboot to Payload.bin", launch_reboot_payload, COLOR_TURQUOISE),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
-	MDEF_HANDLER_EX("Reboot (OFW bypass fuses)", &STATE_REBOOT_BYPASS_FUSES, power_set_state_ex, COLOR_TURQUOISE),
-	MDEF_HANDLER_EX("Reboot (OFW)", &STATE_REBOOT_FULL, power_set_state_ex, COLOR_RED),
-	MDEF_HANDLER_EX("Reboot (RCM)", &STATE_REBOOT_RCM, power_set_state_ex, COLOR_ORANGE),
+	MDEF_HANDLER("Reboot (OFW bypass fuses)", STATE_REBOOT_BYPASS_FUSES, COLOR_TURQUOISE),
+	MDEF_HANDLER("Reboot (OFW)", STATE_REBOOT_FULL, COLOR_RED),
+	MDEF_HANDLER("Reboot (RCM)", STATE_REBOOT_RCM, COLOR_ORANGE),
 	MDEF_HANDLER("Reboot LockSmith-RCM", _ipl_reload, COLOR_TURQUOISE),
-	MDEF_HANDLER_EX("Power off", &STATE_POWER_OFF, power_set_state_ex, COLOR_TURQUOISE),
+	MDEF_HANDLER("Power off", STATE_POWER_OFF, COLOR_TURQUOISE),
 	MDEF_END()
 };
 
@@ -561,17 +700,23 @@ void mask_emmc_need_for_menu() {
 	grey_out_menu_item(&ment_top[5]);
 	grey_out_menu_item(&ment_top[6]);
 	grey_out_menu_item(&ment_top[7]);
-	grey_out_menu_item(&ment_top[9]);
+	grey_out_menu_item(&ment_top[8]);
 	grey_out_menu_item(&ment_top[10]);
 	grey_out_menu_item(&ment_top[11]);
 	grey_out_menu_item(&ment_top[12]);
+	grey_out_menu_item(&ment_top[13]);
 	grey_out_menu_item(&ment_top[14]);
 	grey_out_menu_item(&ment_top[15]);
 	grey_out_menu_item(&ment_top[16]);
 	grey_out_menu_item(&ment_top[17]);
 	grey_out_menu_item(&ment_top[18]);
-	grey_out_menu_item(&ment_top[19]);
 	grey_out_menu_item(&ment_top[20]);
+	grey_out_menu_item(&ment_top[21]);
+	grey_out_menu_item(&ment_top[22]);
+	grey_out_menu_item(&ment_top[23]);
+	grey_out_menu_item(&ment_top[24]);
+	grey_out_menu_item(&ment_top[25]);
+	grey_out_menu_item(&ment_top[26]);
 }
 
 void mask_file_load_keys_need_for_menu() {
@@ -580,10 +725,10 @@ void mask_file_load_keys_need_for_menu() {
 	grey_out_menu_item(&ment_top[5]);
 	grey_out_menu_item(&ment_top[6]);
 	grey_out_menu_item(&ment_top[7]);
-	grey_out_menu_item(&ment_top[9]);
-	grey_out_menu_item(&ment_top[10]);
-	grey_out_menu_item(&ment_top[11]);
-	grey_out_menu_item(&ment_top[12]);
+	grey_out_menu_item(&ment_top[15]);
+	grey_out_menu_item(&ment_top[16]);
+	grey_out_menu_item(&ment_top[17]);
+	grey_out_menu_item(&ment_top[18]);
 }
 
 void mask_no_sd_menu_options() {
@@ -593,23 +738,26 @@ void mask_no_sd_menu_options() {
 	grey_out_menu_item(&ment_top[4]);
 	grey_out_menu_item(&ment_top[5]);
 	grey_out_menu_item(&ment_top[6]);
-	grey_out_menu_item(&ment_top[9]);
+	grey_out_menu_item(&ment_top[8]);
 	grey_out_menu_item(&ment_top[10]);
-	grey_out_menu_item(&ment_top[11]);
 	grey_out_menu_item(&ment_top[12]);
+	grey_out_menu_item(&ment_top[13]);
+	grey_out_menu_item(&ment_top[15]);
+	grey_out_menu_item(&ment_top[16]);
+	grey_out_menu_item(&ment_top[17]);
 	grey_out_menu_item(&ment_top[18]);
-		grey_out_menu_item(&ment_top[19]);
-		grey_out_menu_item(&ment_top[20]);
-		grey_out_menu_item(&ment_top[22]);
-		grey_out_menu_item(&ment_top[23]);
-		grey_out_menu_item(&ment_top[24]);
+	grey_out_menu_item(&ment_top[25]);
+	grey_out_menu_item(&ment_top[26]);
+		grey_out_menu_item(&ment_top[28]);
+		grey_out_menu_item(&ment_top[29]);
+		grey_out_menu_item(&ment_top[30]);
 }
 
-void mask_specific_menu_options() {
+static void mask_specific_menu_options() {
 	// Grey out "switch nand work " and "sync joycons" if emunand or sysnand not present.
 	if (!emummc_available || !sysmmc_available) {
 		grey_out_menu_item(&ment_top[0]); // switch between sysnand and emunand work
-		grey_out_menu_item(&ment_top[18]); // Syncronize joycons
+		grey_out_menu_item(&ment_top[24]); // Syncronize joycons
 	}
 
 	if (f_stat("sd:/LockSmith-RCM/prod.keys", NULL)) {
@@ -621,47 +769,61 @@ void mask_specific_menu_options() {
 		grey_out_menu_item(&ment_top[6]);
 	}
 
+// Grey out verify and fix PRODINFO on file and restore PRODINFO if backup file not found
+	/*
+	char path[256];
+	if (menu_on_sysnand) {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_sysnand_dec.bin", emmc_id);
+	} else {
+		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
+	}
+	if (f_stat(path, NULL) != FR_OK) {
+		grey_out_menu_item(&ment_top[12]);
+		grey_out_menu_item(&ment_top[13]);
+	}
+	*/
+
 	// Grey out PRODINFO build (and build and flash) from donor if  donor file  not found.
 	if (f_stat(DONOR_PRODINFO_FILENAME, NULL)) {
-		grey_out_menu_item(&ment_top[10]);
-		grey_out_menu_item(&ment_top[12]);
+		grey_out_menu_item(&ment_top[16]);
+		grey_out_menu_item(&ment_top[18]);
 	}
 
 	// Grey out unbrick via EmmcHacGen package options if   files and folders not found.
 	if (f_stat("cdj_package_files", NULL) || f_stat("cdj_package_files/BCPKG2-1-Normal-Main.bin", NULL) || f_stat("cdj_package_files/BCPKG2-2-Normal-Sub.bin", NULL) || f_stat("cdj_package_files/BCPKG2-3-SafeMode-Main.bin", NULL) || f_stat("cdj_package_files/BCPKG2-4-SafeMode-Sub.bin", NULL) || f_stat("cdj_package_files/BOOT0.bin", NULL) || f_stat("cdj_package_files/BOOT1.bin", NULL) || f_stat("cdj_package_files/SYSTEM/Contents/placehld", NULL) || f_stat("cdj_package_files/SYSTEM/Contents/registered", NULL) || f_stat("cdj_package_files/SYSTEM/save", NULL)) {
-		grey_out_menu_item(&ment_top[19]);
-		grey_out_menu_item(&ment_top[20]);
+		grey_out_menu_item(&ment_top[25]);
+		grey_out_menu_item(&ment_top[26]);
 	}
 
 	// Grey out Hekate reboot if update.bin not found.
 	if (f_stat("bootloader/update.bin", NULL)) {
-		grey_out_menu_item(&ment_top[23]);
+		grey_out_menu_item(&ment_top[29]);
 	}
 
 	// Grey out Payload.bin reboot if not found.
 	if (f_stat("payload.bin", NULL)) {
-		grey_out_menu_item(&ment_top[24]);
+		grey_out_menu_item(&ment_top[30]);
 	}
 
 	// Grey out reboot to RCM option if on Mariko or patched console, else grey out reboot OFW options if auto-rcm enabled
 	if (h_cfg.t210b01 || h_cfg.rcm_patched) {
-		grey_out_menu_item(&ment_top[28]);
+		grey_out_menu_item(&ment_top[34]);
 	} else {
 		if (is_autorcm_enabled()) {
-			grey_out_menu_item(&ment_top[26]);
-			grey_out_menu_item(&ment_top[27]);
+			grey_out_menu_item(&ment_top[32]);
+			grey_out_menu_item(&ment_top[33]);
 		}
 	}
 
 // Grey out reboot OFW options if sysnand not founded
 	if (!sysmmc_available) {
-		grey_out_menu_item(&ment_top[26]);
-		grey_out_menu_item(&ment_top[27]);
+		grey_out_menu_item(&ment_top[32]);
+		grey_out_menu_item(&ment_top[33]);
 	}
 }
 
-static bool internal_call = false;
 bool init_and_verify_bis_keys(bool from_file) {
+	static bool internal_call = false;
 	if (!internal_call) {
 		reset_menu(&menu_top);
 	}
@@ -691,10 +853,11 @@ bool init_and_verify_bis_keys(bool from_file) {
 		mask_emmc_need_for_menu();
 		grey_out_menu_item(&ment_top[4]);
 		cls();
-EPRINTF("\nFailed to derive keys!\nMost menu function will be disabled and auto functions will be completly disabled.\nPress any key to continue...\n");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_BIS_KEYS_LOAD);
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_FUNCTIONS_AND_BATCH_DISABLED);
+		log_printf(false, LOG_INFO, LOG_MSG_CONTINUE);
 		btn_wait();
-		gfx_clear_grey(0x1B);
-		gfx_con_setpos(0, 0);
+		cls();
 		internal_call = false;
 		return false;
 	}
@@ -747,13 +910,14 @@ EPRINTF("\nFailed to derive keys!\nMost menu function will be disabled and auto 
 	if (!sysmmc_available && !emummc_available && internal_call) {
 		mask_emmc_need_for_menu();
 		cls();
-EPRINTF("\nFailed to init EMMC or to discover an emunand config!\nMost menu function will be disabled and auto functions will be completly disabled.\nPress any key to continue...\n");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_NANDS_LOAD);
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_FUNCTIONS_AND_BATCH_DISABLED);
+		log_printf(false, LOG_INFO, LOG_MSG_CONTINUE);
 		btn_wait();
-		gfx_clear_grey(0x1B);
-		gfx_con_setpos(0, 0);
 		h_cfg.emummc_force_disable = true;
 		emu_cfg.enabled = false;
 		menu_on_sysnand = true;
+		cls();
 		internal_call = false;
 		return false;
 	}
@@ -764,21 +928,32 @@ EPRINTF("\nFailed to init EMMC or to discover an emunand config!\nMost menu func
 			if (!test_fallback) {
 				mask_emmc_need_for_menu();
 				cls();
-		EPRINTF("\nFailed to init EMMC or to discover an emunand config!\nMost menu function will be disabled and auto functions will be completly disabled.\nPress any key to continue...\n");
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_NANDS_LOAD);
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_FUNCTIONS_AND_BATCH_DISABLED);
+		log_printf(false, LOG_INFO, LOG_MSG_CONTINUE);
 				btn_wait();
-				gfx_clear_grey(0x1B);
-				gfx_con_setpos(0, 0);
 				h_cfg.emummc_force_disable = true;
 				emu_cfg.enabled = false;
 				menu_on_sysnand = true;
+				cls();
 				internal_call = false;
 				return false;
 			}
 		}
 	}
 
-	h_cfg.emummc_force_disable = orig_emummc_force_disable;
-	emu_cfg.enabled = orig_emu_enabled;
+	if ((!emummc_available) || (!sysmmc_available && !emummc_available)) {
+		h_cfg.emummc_force_disable = true;
+		emu_cfg.enabled = false;
+		menu_on_sysnand = true;
+	} else if (!sysmmc_available) {
+		h_cfg.emummc_force_disable = false;
+		emu_cfg.enabled = true;
+		menu_on_sysnand = false;
+	} else {
+		h_cfg.emummc_force_disable = orig_emummc_force_disable;
+		emu_cfg.enabled = orig_emu_enabled;
+	}
 
 	mask_specific_menu_options();
 	internal_call = false;
@@ -790,6 +965,20 @@ void init_payload() {
 	mask_specific_menu_options();
 	grey_out_menu_item(&ment_top[1]);
 
+	copy_buf = (BYTE*)malloc(COPY_BUF_SIZE);
+	if (!copy_buf) {
+		log_printf(false, LOG_ERR, LOG_MSG_MALLOC_ERROR);
+		log_printf(false, LOG_ERR, LOG_MSG_PRESS_KEY_TO_SHUTDOWN);
+		btn_wait();
+		power_set_state(POWER_OFF_RESET);
+	}
+	cal0_buf = (u8 *)malloc(NX_EMMC_CALIBRATION_SIZE);
+	if (!cal0_buf) {
+		log_printf(false, LOG_ERR, LOG_MSG_MALLOC_ERROR);
+		log_printf(false, LOG_ERR, LOG_MSG_PRESS_KEY_TO_SHUTDOWN);
+		btn_wait();
+		power_set_state(POWER_OFF_RESET);
+	}
 	if (f_stat("sd:/switch/AIO_LS_pack_Updater/called_via_AIO_LS_pack_Updater", NULL) == FR_OK) {
 		called_from_AIO_LS_Pack_Updater = true;
 		f_unlink("sd:/switch/AIO_LS_pack_Updater/called_via_AIO_LS_pack_Updater");
@@ -802,10 +991,10 @@ void init_payload() {
 		f_unlink("switch/AIO_LS_pack_Updater/daybreak_auto.nro");
 		f_unlink("switch/AIO_LS_pack_Updater/Daybreak-cli.nro");
 		if (f_stat("payload.bin.temp", NULL) == FR_OK) {
-			f_copy("bootloader/update.bin", "payload.bin.temp", NULL);
+			f_copy("bootloader/update.bin", "payload.bin.temp");
 		}
 		if (f_stat("payload.bin.temp", NULL) == FR_OK) {
-			f_copy("atmosphere/reboot_payload.bin", "payload.bin.temp", NULL);
+			f_copy("atmosphere/reboot_payload.bin", "payload.bin.temp");
 		}
 		easy_rename("payload.bin.temp", "payload.bin");
 	}
@@ -815,31 +1004,46 @@ void init_payload() {
 	} else {
 		bis_loaded = init_and_verify_bis_keys(true);
 	}
-	if (!have_minerva) {
+	if (!have_minerva && !h_cfg.t210b01) {
 		cls();
-		gfx_printf("%kMinerva not enabled, functions will be slower down.\n%kPress any key to continue", COLOR_ORANGE, COLOR_WHITE);
+		log_printf(false, LOG_WARN, LOG_MSG_WARN_MINERVA);
+		log_printf(false, LOG_INFO, LOG_MSG_CONTINUE);
 		btn_wait();
 	}
 	if (!have_sd) {
 		mask_specific_menu_options();
 		mask_no_sd_menu_options();
 		cls();
-		gfx_printf("%kSD can't be mounted, most function will be disabled and batch will not be executed.\n%kPress any key to continue", COLOR_RED, COLOR_WHITE);
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
+		log_printf(false, LOG_ERR, LOG_MSG_ERR_FUNCTIONS_AND_BATCH_DISABLED);
+		log_printf(false, LOG_INFO, LOG_MSG_CONTINUE);
 		btn_wait();
 		return;
 	}
 	if (bis_loaded) {
-		for (u32 i = 0; i < ARRAY_SIZE(auto_actions); i++)
-			run_auto_action(&auto_actions[i]);
+		bool test_on_emunand = false;
+		for (u32 i = 0; i < ARRAY_SIZE(auto_actions); i++) {
+			run_auto_action(&auto_actions[i], test_on_emunand);
+			if (auto_actions[i].possible_on_emunand && !test_on_emunand) {
+				i--;
+				test_on_emunand = true;
+			} else {
+				test_on_emunand = false;
+			}
+		}
 		if (called_from_config_files && !called_from_AIO_LS_Pack_Updater) {
-			log_printf(LOG_INFO, LOG_MSG_BATCH_END);
+			log_printf(true, LOG_INFO, LOG_MSG_BATCH_END);
 			cls();
 			gfx_con_setpos(100, 640);
-			gfx_printf("%kPress any key to view batch log.", COLOR_YELLOW);
+			log_printf(false, LOG_WARN, LOG_MSG_BATCH_VIEW_LOG);
 			btn_wait();
 			msleep(1000);
 			show_log_viewer();
 			log_free();
+			free((BYTE*)copy_buf);
+			free((u8*)cal0_buf);
+			emunand_list_free();
+			if (mark_for_shutdown) power_set_state(POWER_OFF_RESET);
 		}
 	}
 }
@@ -899,6 +1103,7 @@ void ipl_main()
 		// h_cfg.errors |= ERR_LIBSYS_MTC;
 		have_minerva = false;
 	} else {
+		COPY_BUF_SIZE = 0x80000;
 		have_minerva = true;
 	}
 
@@ -906,7 +1111,6 @@ void ipl_main()
 	watchdog_end();
 
 skip_lp0_minerva_config:
-	COPY_BUF_SIZE = (!have_minerva) ? 0x10000 : 0x800000;
 	// Initialize display window, backlight and gfx console.
 	u32 *fb = display_init_window_a_pitch();
 	gfx_init_ctxt(fb, 720, 1280, 720);
@@ -922,7 +1126,7 @@ skip_lp0_minerva_config:
 	debug_log_start();
 	build_emunand_list();
 
-check_physical_nand();
+	check_physical_nand();
 
 	select_and_apply_emunand();
 
@@ -938,6 +1142,9 @@ init_payload();
 			tui_do_menu(&menu_top);
 		}
 	}
+	free((BYTE*)copy_buf);
+	free((u8*)cal0_buf);
+	emunand_list_free();
 
 	// Halt BPMP if we managed to get out of execution.
 	while (true)
