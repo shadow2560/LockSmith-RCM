@@ -28,6 +28,28 @@ gfx_con_t gfx_con;
 
 static bool gfx_con_init_done = false;
 
+// Scroll the whole framebuffer up by `lines_px` pixels and clear the bottom area.
+// This behaves like a terminal when output reaches the bottom.
+static void gfx_con_scroll(u32 lines_px)
+{
+	if (!gfx_ctxt.fb || lines_px == 0 || lines_px >= gfx_ctxt.height)
+		return;
+
+	const u32 stride = gfx_ctxt.stride;
+	const u32 height = gfx_ctxt.height;
+	const u32 move_rows = height - lines_px;
+
+	u32 *fb = gfx_ctxt.fb;
+
+	memmove(fb, fb + lines_px * stride, move_rows * stride * sizeof(u32));
+
+	const u32 fill_col = gfx_con.bgcol;
+	u32 *dst = fb + move_rows * stride;
+	const u32 count = lines_px * stride;
+	for (u32 i = 0; i < count; i++)
+		dst[i] = fill_col;
+}
+
 static const u8 _gfx_font[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Char 032 ( )
 	0x00, 0x30, 0x30, 0x18, 0x18, 0x00, 0x0C, 0x00, // Char 033 (!)
@@ -230,6 +252,11 @@ void gfx_putc(char c)
 			{
 				gfx_con.x = 0;
 				gfx_con.y += 16;
+				if (gfx_con.y > gfx_ctxt.height - 16)
+				{
+					gfx_con_scroll(16);
+					gfx_con.y = gfx_ctxt.height - 16;
+				}
 			}
 		}
 		else if (c == '\n')
@@ -237,7 +264,10 @@ void gfx_putc(char c)
 			gfx_con.x = 0;
 			gfx_con.y += 16;
 			if (gfx_con.y > gfx_ctxt.height - 16)
-				gfx_con.y = 0;
+			{
+				gfx_con_scroll(16);
+				gfx_con.y = gfx_ctxt.height - 16;
+			}
 		}
 		break;
 	case 8:
@@ -265,6 +295,11 @@ void gfx_putc(char c)
 			{
 				gfx_con.x = 0;
 				gfx_con.y += 8;
+				if (gfx_con.y > gfx_ctxt.height - 8)
+				{
+					gfx_con_scroll(8);
+					gfx_con.y = gfx_ctxt.height - 8;
+				}
 			}
 		}
 		else if (c == '\n')
@@ -272,7 +307,10 @@ void gfx_putc(char c)
 			gfx_con.x = 0;
 			gfx_con.y += 8;
 			if (gfx_con.y > gfx_ctxt.height - 8)
-				gfx_con.y = 0;
+			{
+				gfx_con_scroll(8);
+				gfx_con.y = gfx_ctxt.height - 8;
+			}
 		}
 		break;
 	}
