@@ -94,6 +94,7 @@ void tui_pbar(int x, int y, u32 val, u32 fgcol, u32 bgcol)
 void *tui_do_menu(menu_t *menu)
 {
 	int idx = 0, prev_idx = 0, cnt = 0x7FFFFFFF;
+	gfx_con.scroll_enabled = false;
 
 	gfx_clear_partial_grey(0x1B, 0, 1256);
 	tui_sbar(true);
@@ -207,6 +208,7 @@ void *tui_do_menu(menu_t *menu)
 		}
 		if (btn & BTN_POWER)
 		{
+			gfx_con.scroll_enabled = true;
 			ment_t *ent = &menu->ents[idx];
 			switch (ent->type)
 			{
@@ -220,12 +222,15 @@ void *tui_do_menu(menu_t *menu)
 				return ent->data;
 				break;
 			case MENT_BACK:
+				gfx_con.scroll_enabled = false;
 				return NULL;
 				break;
 			case MENT_HDLR_RE:
 				ent->handler(ent);
-				if (!ent->data)
+				if (!ent->data) {
+					gfx_con.scroll_enabled = false;
 					return NULL;
+				}
 				break;
 			default:
 				break;

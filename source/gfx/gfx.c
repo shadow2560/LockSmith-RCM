@@ -254,7 +254,7 @@ void gfx_putc(char c)
 				gfx_con.y += 16;
 				if (gfx_con.y > gfx_ctxt.height - 16)
 				{
-					gfx_con_scroll(16);
+					if (gfx_con.scroll_enabled) gfx_con_scroll(16);
 					gfx_con.y = gfx_ctxt.height - 16;
 				}
 			}
@@ -265,7 +265,7 @@ void gfx_putc(char c)
 			gfx_con.y += 16;
 			if (gfx_con.y > gfx_ctxt.height - 16)
 			{
-				gfx_con_scroll(16);
+				if (gfx_con.scroll_enabled) gfx_con_scroll(16);
 				gfx_con.y = gfx_ctxt.height - 16;
 			}
 		}
@@ -297,7 +297,7 @@ void gfx_putc(char c)
 				gfx_con.y += 8;
 				if (gfx_con.y > gfx_ctxt.height - 8)
 				{
-					gfx_con_scroll(8);
+					if (gfx_con.scroll_enabled) gfx_con_scroll(8);
 					gfx_con.y = gfx_ctxt.height - 8;
 				}
 			}
@@ -308,7 +308,7 @@ void gfx_putc(char c)
 			gfx_con.y += 8;
 			if (gfx_con.y > gfx_ctxt.height - 8)
 			{
-				gfx_con_scroll(8);
+				if (gfx_con.scroll_enabled) gfx_con_scroll(8);
 				gfx_con.y = gfx_ctxt.height - 8;
 			}
 		}

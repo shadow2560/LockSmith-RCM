@@ -47,6 +47,7 @@ typedef struct _gfx_con_t
 	int fillbg;
 	u32 bgcol;
 	bool mute;
+	bool scroll_enabled;
 } gfx_con_t;
 
 // Global gfx console and context.
