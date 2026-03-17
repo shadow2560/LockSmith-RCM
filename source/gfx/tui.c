@@ -214,6 +214,7 @@ void *tui_do_menu(menu_t *menu)
 			{
 			case MENT_HANDLER:
 				ent->handler(ent->data);
+				gfx_con.scroll_enabled = false;
 				break;
 			case MENT_MENU:
 				return tui_do_menu(ent->menu);
@@ -231,8 +232,10 @@ void *tui_do_menu(menu_t *menu)
 					gfx_con.scroll_enabled = false;
 					return NULL;
 				}
+				gfx_con.scroll_enabled = false;
 				break;
 			default:
+				gfx_con.scroll_enabled = false;
 				break;
 			}
 			gfx_con.fntsz = 16;
