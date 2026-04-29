@@ -5,6 +5,7 @@
 /*------------------------------------------------------------------------*/
 
 #include <mem/heap.h>
+#include <rtc/max77620-rtc.h>
 #include <storage/sdmmc.h>
 
 #include <libs/fatfs/ff.h>
