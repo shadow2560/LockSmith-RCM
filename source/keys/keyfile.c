@@ -41,12 +41,12 @@ bool AddKey(u8 *buff, char *in, u32 len){
 
 bool GetKeysFromFile(char *path, key_storage_t* dumpedKeys) {
 	gfx_puts("Grabbing keys from prod.keys...");
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		return false;
 	}
 
 	LIST_INIT(iniList);
-	if (!ini_parse(&iniList, path, false)) {
+	if (ini_parse(&iniList, path, false)) {
 		debug_log_write("Init parse error in bis keys extract via file\n");
 		return false;
 	}

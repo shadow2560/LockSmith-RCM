@@ -136,7 +136,7 @@ static void _derive_keyblob_keys(key_storage_t *keys) {
 
 	if (!emmc_storage.initialized) {
 		have_keyblobs = false;
-	} else if (!emummc_storage_read(KEYBLOB_OFFSET / EMMC_BLOCKSIZE, KB_FIRMWARE_VERSION_600 + 1, keyblob_buffer)) {
+	} else if (emummc_storage_read(KEYBLOB_OFFSET / EMMC_BLOCKSIZE, KB_FIRMWARE_VERSION_600 + 1, keyblob_buffer)) {
 		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_READ_KEYBLOBS);
 		have_keyblobs = false;
 	} else {
@@ -527,7 +527,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 		mode |= FA_CREATE_ALWAYS;
 	}
 
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		free(text_buffer);
 		return 3;
@@ -550,7 +550,7 @@ int save_mariko_partial_keys(u32 start, u32 count, bool append) {
 }
 
 static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_buffer, bool is_dev) {
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		return;
 	}

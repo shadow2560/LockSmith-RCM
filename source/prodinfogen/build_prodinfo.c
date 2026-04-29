@@ -156,7 +156,7 @@ static void _build_cal0(u8* prodinfo_buffer, u32 prodinfo_size, u8 master_key_0[
 }
 
 static void _save_prodinfo_to_sd(u8* prodinfo_buffer, u32 prodinfo_size, bool is_from_donor) {
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		return;
 	}

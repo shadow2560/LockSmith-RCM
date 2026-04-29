@@ -67,7 +67,7 @@ DRESULT disk_read (
 		return sdmmc_storage_read(&sd_storage, sector, count, buff) ? RES_OK : RES_ERROR;
 
 	case DRIVE_BIS:
-		return nx_emmc_bis_read(sector, count, buff) ? RES_OK : RES_ERROR;
+		return nx_emmc_bis_read(sector, count, buff) ? RES_ERROR : RES_OK;
 		// return nx_emmc_bis_read(sector, count, buff);
 	}
 
@@ -90,7 +90,7 @@ DRESULT disk_write (
 		return sdmmc_storage_write(&sd_storage, sector, count, (void *)buff) ? RES_OK : RES_ERROR;
 
 	case DRIVE_BIS:
-		return nx_emmc_bis_write(sector, count, (void *)buff) ? RES_OK : RES_ERROR;
+		return nx_emmc_bis_write(sector, count, (void *)buff) ? RES_ERROR : RES_OK;
 		// return nx_emmc_bis_write(sector, count, (void *)buff);
 	}
 

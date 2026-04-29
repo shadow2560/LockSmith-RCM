@@ -1050,7 +1050,7 @@ void init_payload() {
 
 void check_physical_nand() {
 	emmc_initialize(true);
-	if (!emmc_set_partition(EMMC_BOOT0)) {
+	if (emmc_set_partition(EMMC_BOOT0)) {
 		physical_emmc_ok = false;
 		sysmmc_available = false;
 	}
@@ -1083,7 +1083,7 @@ void ipl_main()
 	bpmp_clk_rate_set(h_cfg.t210b01 ? ipl_ver.rcfg.bclk_t210b01 : ipl_ver.rcfg.bclk_t210);
 
 	// Mount SD Card.
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		// h_cfg.errors |= ERR_SD_BOOT_EN;
 		have_sd = false;
 	} else {

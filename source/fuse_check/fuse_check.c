@@ -435,7 +435,7 @@ void fuse_check() {
 	u8 fw_major = 0, fw_minor = 0, fw_patch = 0;
 	bool fw_detected = false;
 
-	if (emummc_storage_init_mmc() == 0) {
+	if (!emummc_storage_init_mmc()) {
 		// Try NCA detection
 		fw_detected = detect_firmware_from_nca(&fw_major, &fw_minor, &fw_patch);
 		emummc_storage_end();
@@ -594,7 +594,7 @@ void fuse_check() {
 	u8 fw_major = 0, fw_minor = 0, fw_patch = 0;
 	bool fw_detected = false;
 
-	if (emummc_storage_init_mmc() == 0) {
+	if (!emummc_storage_init_mmc()) {
 		// Try NCA detection
 		fw_detected = detect_firmware_from_nca(&fw_major, &fw_minor, &fw_patch);
 		emummc_storage_end();

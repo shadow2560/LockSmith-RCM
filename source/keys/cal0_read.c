@@ -86,12 +86,12 @@ static int se_aes_crypt_xts_nx(u32 tweak_ks, u32 crypt_ks, int enc, u64 sec, voi
 	u8 *psrc = (u8 *)src;
 
 	for (u32 i = 0; i < num_secs; i++) {
-		if (!se_aes_crypt_xts_sec_nx(tweak_ks, crypt_ks, enc, sec + i, tweak, true, 0, pdst + secsize * i, psrc + secsize * i, secsize)) {
-			return 0;
+		if (se_aes_crypt_xts_sec_nx(tweak_ks, crypt_ks, enc, sec + i, tweak, true, 0, pdst + secsize * i, psrc + secsize * i, secsize)) {
+			return 1;
 		}
 	}
 
-	return 1;
+	return 0;
 }
 
 bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer, const char* sd_path) {
@@ -106,7 +106,7 @@ bool cal0_read(u32 tweak_ks, u32 crypt_ks, void *read_buffer, const char* sd_pat
 	u32 sector = NX_EMMC_CALIBRATION_OFFSET / EMMC_BLOCKSIZE;
 
 	if (sd_path == NULL) {
-		if (!emummc_storage_read(sector, NX_EMMC_CALIBRATION_SIZE / EMMC_BLOCKSIZE, read_buffer)) {
+		if (emummc_storage_read(sector, NX_EMMC_CALIBRATION_SIZE / EMMC_BLOCKSIZE, read_buffer)) {
 			log_printf(true, LOG_ERR, LOG_MSG_ERROR_PRODINFO_READ);
 			return false;
 		}

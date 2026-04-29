@@ -154,7 +154,7 @@ void build_emunand_list() {
 	}
 	LIST_INIT(list);
 	if (!f_stat("sd:/bootloader/hekate_ipl.ini", NULL)) {
-		if (!ini_parse(&list, "sd:/bootloader/hekate_ipl.ini", false)) {
+		if (ini_parse(&list, "sd:/bootloader/hekate_ipl.ini", false)) {
 			debug_log_write("Parsing hekate_ipl.ini failed.\n");
 		} else {
 			emunand_list_build(&list, true);
@@ -163,7 +163,7 @@ void build_emunand_list() {
 		}
 	}
 	if (!f_stat("sd:/bootloader/ini", NULL)) {
-		if (!ini_parse(&list, "sd:/bootloader/ini", true)) {
+		if (ini_parse(&list, "sd:/bootloader/ini", true)) {
 			debug_log_write("Parsing bootloader/ini folder  failed.\n");
 		} else {
 			emunand_list_build(&list, true);
@@ -185,7 +185,7 @@ void build_emunand_list() {
 		emunand_count++;
 	}
 	if (!f_stat("sd:/bootloader/hekate_ipl.ini", NULL)) {
-		if (!ini_parse(&list, "sd:/bootloader/hekate_ipl.ini", false)) {
+		if (ini_parse(&list, "sd:/bootloader/hekate_ipl.ini", false)) {
 			debug_log_write("Parsing hekate_ipl.ini failed.\n");
 		} else {
 			emunand_list_build(&list, false);
@@ -194,7 +194,7 @@ void build_emunand_list() {
 		}
 	}
 	if (!f_stat("sd:/bootloader/ini", NULL)) {
-		if (!ini_parse(&list, "sd:/bootloader/ini", true)) {
+		if (ini_parse(&list, "sd:/bootloader/ini", true)) {
 			debug_log_write("Parsing bootloader/ini folder  failed.\n");
 		} else {
 			emunand_list_build(&list, false);
@@ -364,21 +364,21 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 
 	/* Select partition context */
 	if (strcmp(part_name, "BOOT0") == 0) {
-		if (set_partition && !emummc_storage_set_mmc_partition(EMMC_BOOT0)) {
+		if (set_partition && emummc_storage_set_mmc_partition(EMMC_BOOT0)) {
 			log_printf(true, LOG_ERR, LOG_MSG_ERR_SET_PARTITION);
 			return false;
 		}
 		is_boot = true;
 		part_size_bytes = (u64)emmc_storage.ext_csd.boot_mult << 17; // boot size from ext_csd
 	} else if (strcmp(part_name, "BOOT1") == 0) {
-		if (set_partition && !emummc_storage_set_mmc_partition(EMMC_BOOT1)) {
+		if (set_partition && emummc_storage_set_mmc_partition(EMMC_BOOT1)) {
 			log_printf(true, LOG_ERR, LOG_MSG_ERR_SET_PARTITION);
 			return false;
 		}
 		is_boot = true;
 		part_size_bytes = (u64)emmc_storage.ext_csd.boot_mult << 17;
 	} else {
-		if (set_partition && !emummc_storage_set_mmc_partition(EMMC_GPP)) {
+		if (set_partition && emummc_storage_set_mmc_partition(EMMC_GPP)) {
 			log_printf(true, LOG_ERR, LOG_MSG_ERR_SET_PARTITION);
 			return false;
 		}
@@ -739,7 +739,7 @@ bool file_is_closed = true;
 			} else  {
 				Res = emummc_storage_write(curLba, num, buff);
 			}
-			if (!Res){
+			if (Res){
 				log_printf(true, LOG_ERR, LOG_MSG_FLASH_PARTITION_ERR_PARTITION_WRITE);
 				ui_spinner_clear();
 				goto cleanup;
@@ -751,7 +751,7 @@ bool file_is_closed = true;
 			} else {
 				Res = emummc_storage_read(curLba, num, buff);
 			}
-			if (!Res) {
+			if (Res) {
 				log_printf(true, LOG_ERR, LOG_MSG_ERR_FILE_READ);
 				ui_spinner_clear();
 				goto cleanup;
@@ -1441,7 +1441,7 @@ static ALWAYS_INLINE u8 *_read_pkg1(const pkg1_id_t **pkg1_id) {
 	if (!mount_nand_part(NULL, "BOOT0", true, true, false, false, NULL, NULL, NULL, NULL)) {
 		return NULL;
 	}
-	if (!emummc_storage_read(PKG1_OFFSET / EMMC_BLOCKSIZE, PKG1_MAX_SIZE / EMMC_BLOCKSIZE, pkg1)) {
+	if (emummc_storage_read(PKG1_OFFSET / EMMC_BLOCKSIZE, PKG1_MAX_SIZE / EMMC_BLOCKSIZE, pkg1)) {
 		unmount_nand_part(NULL, true, false, true, false);
 		return NULL;
 	}
@@ -1472,7 +1472,7 @@ void DumpFw() {
 
 	u32 timer = get_tmr_s();
 
-	if (!sd_mount()) {
+	if (sd_mount()) {
 		log_printf(true, LOG_ERR, LOG_MSG_ERR_SD_MOUNT);
 		res = 1;
 		goto out;
@@ -1507,7 +1507,7 @@ void DumpFw() {
 
 	u8 fw_major = 0, fw_minor = 0, fw_patch = 0;
 	bool fw_detected = false;
-	if (emummc_storage_init_mmc() == 0) {
+	if (!emummc_storage_init_mmc()) {
 		fw_detected = detect_firmware_from_nca(&fw_major, &fw_minor, &fw_patch);
 		emummc_storage_end();
 		sd_mount();

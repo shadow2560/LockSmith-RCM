@@ -74,14 +74,11 @@ int ini_parse(link_t *dst, const char *ini_path, bool is_dir)
 		if (!filelist)
 		{
 			free(filename);
-			return 0;
+			return 1;
 		}
 		strcpy(filename + pathlen, "/");
 		pathlen++;
 	}
-
-		csec = _ini_create_section(dst, csec, "Unknown", INI_CHOICE);
-		list_init(&csec->kvs);
 
 	do
 	{
@@ -103,7 +100,7 @@ int ini_parse(link_t *dst, const char *ini_path, bool is_dir)
 			free(filelist);
 			free(filename);
 
-			return 0;
+			return 1;
 		}
 
 		lbuf = malloc(512);
@@ -173,7 +170,7 @@ int ini_parse(link_t *dst, const char *ini_path, bool is_dir)
 	free(filename);
 	free(filelist);
 
-	return 1;
+	return 0;
 }
 
 char *ini_check_special_section(ini_sec_t *cfg)

@@ -170,7 +170,7 @@ bool readData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32,
 	while (clusterOffset + sectorCount > SECTORS_IN_CLUSTER)
 	{
 		u32 sectorsToRead = SECTORS_IN_CLUSTER - clusterOffset;
-		if (!RETRY(nx_emmc_bis_read(sector, sectorsToRead, tmp + (sectorOffset * EMMC_BLOCKSIZE))))
+		if (!RETRY(!nx_emmc_bis_read(sector, sectorsToRead, tmp + (sectorOffset * EMMC_BLOCKSIZE))))
 			goto out;
 
 		sector += sectorsToRead;
@@ -185,7 +185,7 @@ bool readData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32,
 	if (sectorCount == 0)
 		goto done;
 
-	if (!RETRY(nx_emmc_bis_read(sector, sectorCount, tmp + (sectorOffset * EMMC_BLOCKSIZE))))
+	if (!RETRY(!nx_emmc_bis_read(sector, sectorCount, tmp + (sectorOffset * EMMC_BLOCKSIZE))))
 		goto out;
 
 	memcpy(buffer, tmp + newOffset, length);
@@ -229,11 +229,11 @@ bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32
 		{
 			bytesToWrite = length;
 		}
-		if (!RETRY(nx_emmc_bis_read(sector, 1, tmp_sec)))
+		if (!RETRY(!nx_emmc_bis_read(sector, 1, tmp_sec)))
 			goto out;
 
 		memcpy(tmp_sec + newOffset, buffer, bytesToWrite);
-		if (!RETRY(nx_emmc_bis_write(sector, 1, tmp_sec)))
+		if (!RETRY(!nx_emmc_bis_write(sector, 1, tmp_sec)))
 			goto out;
 
 		sector++;
@@ -258,7 +258,7 @@ bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32
 	while (clusterOffset + sectorCount >= SECTORS_IN_CLUSTER)
 	{
 		u32 sectorsToRead = SECTORS_IN_CLUSTER - clusterOffset;
-		if (!RETRY(nx_emmc_bis_write(sector, sectorsToRead, buffer + newOffset + (sectorOffset * EMMC_BLOCKSIZE))))
+		if (!RETRY(!nx_emmc_bis_write(sector, sectorsToRead, buffer + newOffset + (sectorOffset * EMMC_BLOCKSIZE))))
 			goto out;
 
 		sector += sectorsToRead;
@@ -276,7 +276,7 @@ bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32
 	// write remaining sectors
 	if (sectorCount > 0)
 	{
-		if (!RETRY(nx_emmc_bis_write(sector, sectorCount, buffer + newOffset + (sectorOffset * EMMC_BLOCKSIZE))))
+		if (!RETRY(!nx_emmc_bis_write(sector, sectorCount, buffer + newOffset + (sectorOffset * EMMC_BLOCKSIZE))))
 			goto out;
 
 		length -= sectorCount * EMMC_BLOCKSIZE;
@@ -299,11 +299,11 @@ bool writeData(u8 *buffer, u32 offset, u32 length, void (*progress_callback)(u32
 		goto out;
 	}
 
-	if (!RETRY(nx_emmc_bis_read(sector, 1, tmp_sec)))
+	if (!RETRY(!nx_emmc_bis_read(sector, 1, tmp_sec)))
 		goto out;
 
 	memcpy(tmp_sec, buffer + newOffset + (sectorOffset * EMMC_BLOCKSIZE), length);
-	if (!RETRY(nx_emmc_bis_write(sector, 1, tmp_sec)))
+	if (!RETRY(!nx_emmc_bis_write(sector, 1, tmp_sec)))
 		goto out;
 
 done:
