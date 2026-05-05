@@ -64,7 +64,7 @@ DRESULT disk_read (
 	switch (pdrv)
 	{
 	case DRIVE_SD:
-		return sdmmc_storage_read(&sd_storage, sector, count, buff) ? RES_OK : RES_ERROR;
+		return sdmmc_storage_read(&sd_storage, sector, count, buff) ? RES_ERROR : RES_OK;
 
 	case DRIVE_BIS:
 		return nx_emmc_bis_read(sector, count, buff) ? RES_ERROR : RES_OK;
@@ -87,7 +87,7 @@ DRESULT disk_write (
 	switch (pdrv)
 	{
 	case DRIVE_SD:
-		return sdmmc_storage_write(&sd_storage, sector, count, (void *)buff) ? RES_OK : RES_ERROR;
+		return sdmmc_storage_write(&sd_storage, sector, count, (void *)buff) ? RES_ERROR : RES_OK;
 
 	case DRIVE_BIS:
 		return nx_emmc_bis_write(sector, count, (void *)buff) ? RES_ERROR : RES_OK;
