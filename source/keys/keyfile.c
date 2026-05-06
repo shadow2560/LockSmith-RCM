@@ -73,7 +73,7 @@ bool GetKeysFromFile(char *path, key_storage_t* dumpedKeys) {
 		return false;
 	}
 	if (!AddKey(dumpedKeys->save_mac_key, getKey("save_mac_key", &iniList), SE_KEY_128_SIZE)) {
-		debug_log_write("header key extract via file error\n");
+		debug_log_write("save_mac key extract via file error\n");
 		ini_free(&iniList);
 		return false;
 	}

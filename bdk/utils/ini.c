@@ -80,6 +80,9 @@ int ini_parse(link_t *dst, const char *ini_path, bool is_dir)
 		pathlen++;
 	}
 
+		csec = _ini_create_section(dst, csec, "Unknown", INI_CHOICE);
+		list_init(&csec->kvs);
+
 	do
 	{
 		// Copy ini filename in path string.
