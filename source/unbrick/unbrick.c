@@ -14,7 +14,7 @@
 static int is_file_in_keep_list(const char *name)
 {
 	const char *keep_files[] = {
-		"8000000000000000", // save index
+		// "8000000000000000", // save index, must be reconstructed, for now by launching Atmosphere on the nand wiped
 		"8000000000000120", // save modules list index
 		"80000000000000d1", // erpt save
 		"8000000000000047",
@@ -148,7 +148,7 @@ unmount_nand_part(&gpt, false, true, true, true);
 void wip_nand() {
 	cls();
 	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "wip");
-	if (!bis_loaded && !wait_vol_plus()) {
+	if (!bis_loaded || !wait_vol_plus()) {
 		return;
 	}
 
