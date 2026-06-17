@@ -73,6 +73,8 @@ typedef struct {
 #if 0
 // Source-of-truth list for pack_assets (not compiled into the payload).
 static const nca_map_t nca_db[] = {
+	{22, 5, 0, "f1a867e9f4abb0d6e3c6682a148cff1a.nca"},
+	{22, 1, 0, "2464b8c4d9cd53c5d957faa6dc8e3788.nca"},
 	{22, 0, 0, "cbf77f16ac79778d20fde55ac2f2257e.nca"},
 
 	{21, 2, 0, "ac1ef488027ac5d9222d74393f03507f.nca"},
