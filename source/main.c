@@ -612,11 +612,11 @@ static const auto_action_t auto_actions[] = {
 	{ "incognito", apply_incognito, true  },
 	{ "fix_dg", fix_downgrade, true  },
 	{ "wip",    wip_nand,     true  },
-	{ "rm_parental_control",    remove_parental_control,     true  },
+	// { "rm_parental_control",    remove_parental_control,     true  },
 	{ "unbrick",    emmchacgen_package_flash,     true  },
 	{ "unbrick_and_wip",    emmchacgen_package_flash_with_wip,     true  },
 	{ "rm_erpt",    del_erpt_save,     true  },
-	{ "sync_joycons",    sync_joycons_between_nands,     true  },
+	// { "sync_joycons",    sync_joycons_between_nands,     true  },
 	{ "prodinfogen_flash_scratch",    build_and_flash_prodinfo_from_scratch,     true  },
 	{ "prodinfogen_flash_donor",    build_and_flash_prodinfo_from_donor,     true  },
 	{ "test_and_fix_prodinfo_nand",    test_prodinfo_nand,     true  },
@@ -649,10 +649,10 @@ ment_t ment_top[] = {
 	MDEF_HANDLER("Build and flash PRODINFO file from donor", build_and_flash_prodinfo_from_donor, COLOR_RED),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
 	MDEF_HANDLER("Downgrade fix", fix_downgrade, COLOR_ORANGE),
-	MDEF_HANDLER("Remove parental control", remove_parental_control, COLOR_ORANGE),
+	// MDEF_HANDLER("Remove parental control", remove_parental_control, COLOR_ORANGE),
 	MDEF_HANDLER("Wip nand", wip_nand, COLOR_ORANGE),
 	MDEF_HANDLER("Remove erpt save", del_erpt_save, COLOR_RED),
-	MDEF_HANDLER("Synchronize joycons from working nand", sync_joycons_between_nands, COLOR_RED),
+	// MDEF_HANDLER("Synchronize joycons from working nand", sync_joycons_between_nands, COLOR_RED),
 	MDEF_HANDLER("Unbrick with EmmcHacGen package\n in \"sd:/cdj_package_files\"", emmchacgen_package_flash, COLOR_RED),
 	MDEF_HANDLER("Wip and unbrick with EmmcHacGen package\n in \"sd:/cdj_package_files\"", emmchacgen_package_flash_with_wip, COLOR_RED),
 	MDEF_CAPTION("---------------", COLOR_WHITE),
@@ -715,8 +715,8 @@ void mask_emmc_need_for_menu() {
 	grey_out_menu_item(&ment_top[22]);
 	grey_out_menu_item(&ment_top[23]);
 	grey_out_menu_item(&ment_top[24]);
-	grey_out_menu_item(&ment_top[25]);
-	grey_out_menu_item(&ment_top[26]);
+	// grey_out_menu_item(&ment_top[25]);
+	// grey_out_menu_item(&ment_top[26]);
 }
 
 void mask_file_load_keys_need_for_menu() {
@@ -746,18 +746,18 @@ void mask_no_sd_menu_options() {
 	grey_out_menu_item(&ment_top[16]);
 	grey_out_menu_item(&ment_top[17]);
 	grey_out_menu_item(&ment_top[18]);
-	grey_out_menu_item(&ment_top[25]);
-	grey_out_menu_item(&ment_top[26]);
+	grey_out_menu_item(&ment_top[23]);
+	grey_out_menu_item(&ment_top[24]);
+		grey_out_menu_item(&ment_top[26]);
+		grey_out_menu_item(&ment_top[27]);
 		grey_out_menu_item(&ment_top[28]);
-		grey_out_menu_item(&ment_top[29]);
-		grey_out_menu_item(&ment_top[30]);
 }
 
 static void mask_specific_menu_options() {
 	// Grey out "switch nand work " and "sync joycons" if emunand or sysnand not present.
 	if (!emummc_available || !sysmmc_available) {
 		grey_out_menu_item(&ment_top[0]); // switch between sysnand and emunand work
-		grey_out_menu_item(&ment_top[24]); // Syncronize joycons
+		// grey_out_menu_item(&ment_top[24]); // Syncronize joycons
 	}
 
 	if (f_stat("sd:/LockSmith-RCM/prod.keys", NULL)) {
@@ -791,34 +791,34 @@ static void mask_specific_menu_options() {
 
 	// Grey out unbrick via EmmcHacGen package options if   files and folders not found.
 	if (f_stat("cdj_package_files", NULL) || f_stat("cdj_package_files/BCPKG2-1-Normal-Main.bin", NULL) || f_stat("cdj_package_files/BCPKG2-2-Normal-Sub.bin", NULL) || f_stat("cdj_package_files/BCPKG2-3-SafeMode-Main.bin", NULL) || f_stat("cdj_package_files/BCPKG2-4-SafeMode-Sub.bin", NULL) || f_stat("cdj_package_files/BOOT0.bin", NULL) || f_stat("cdj_package_files/BOOT1.bin", NULL) || f_stat("cdj_package_files/SYSTEM/Contents/placehld", NULL) || f_stat("cdj_package_files/SYSTEM/Contents/registered", NULL) || f_stat("cdj_package_files/SYSTEM/save", NULL)) {
-		grey_out_menu_item(&ment_top[25]);
-		grey_out_menu_item(&ment_top[26]);
+		grey_out_menu_item(&ment_top[23]);
+		grey_out_menu_item(&ment_top[24]);
 	}
 
 	// Grey out Hekate reboot if update.bin not found.
 	if (f_stat("bootloader/update.bin", NULL)) {
-		grey_out_menu_item(&ment_top[29]);
+		grey_out_menu_item(&ment_top[27]);
 	}
 
 	// Grey out Payload.bin reboot if not found.
 	if (f_stat("payload.bin", NULL)) {
-		grey_out_menu_item(&ment_top[30]);
+		grey_out_menu_item(&ment_top[28]);
 	}
 
 	// Grey out reboot to RCM option if on Mariko or patched console, else grey out reboot OFW options if auto-rcm enabled
 	if (h_cfg.t210b01 || h_cfg.rcm_patched) {
-		grey_out_menu_item(&ment_top[34]);
+		grey_out_menu_item(&ment_top[32]);
 	} else {
 		if (is_autorcm_enabled()) {
-			grey_out_menu_item(&ment_top[32]);
-			grey_out_menu_item(&ment_top[33]);
+			grey_out_menu_item(&ment_top[30]);
+			grey_out_menu_item(&ment_top[31]);
 		}
 	}
 
 // Grey out reboot OFW options if sysnand not founded
 	if (!sysmmc_available) {
+		grey_out_menu_item(&ment_top[30]);
 		grey_out_menu_item(&ment_top[32]);
-		grey_out_menu_item(&ment_top[33]);
 	}
 }
 

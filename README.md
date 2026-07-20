@@ -22,11 +22,11 @@ This payload, largely based on [Hekate](https://github.com/CTCaer/hekate), it BD
 * Aply incognito (don't make the backup of PRODINFO so do it first), don't need PKG1 identification like before so don't need to be updated for each new firmware.
 * Build and flash a PRODINFO, from donor or from scratch, based on [ProdinfoGen](https://github.com/CaramelDunes/prodinfo_gen) but largely modified. If you choose to flash it you must backup your PRODINFO first if you want to restore it later, the payload will not do it.
 * Fix downgrade from firmware 21.0.0+ to a lower firmware, based on [DowngradeFixer](https://github.com/sthetix/DowngradeFixer) but largely modified
-* Remove parental control
+* Remove parental control (disabled for now cause not worked on new firmwares)
 * Wip nand
 * Flash an EmmcHacGen package placed in "sd:/cdj_package_files", with or without wip.
 * Remove ERPT save (dangerous)
-* Synchronize joycons between nands (dangerous)
+* Synchronize joycons between nands (dangerous) (disabled for now cause not worked on new firmwares)
 * Display efuses check and diagnostic, largely based on [FuseCheck](https://github.com/sthetix/FuseCheck) but with internal DB, no suport for external DB and no display Efuses table
 * Reboot to a payload
 * Reboot to OFW with bypass fuses or not
@@ -54,16 +54,16 @@ List of files and associated functions, executed in this order:
 | fix_dg_emunand | Fix downgrade from firmware 21.0.0+ to a lower firmware on emunand |
 | wip_sysnand | Wip sysnand |
 | wip_emunand | Wip emunand |
-| rm_parental_control_sysnand | Remove parental control on sysnand |
-| rm_parental_control_emunand | Remove parental control on emunand |
+| rm_parental_control_sysnand | Remove parental control on sysnand (disabled for now cause not worked on new firmwares) |
+| rm_parental_control_emunand | Remove parental control on emunand (disabled for now cause not worked on new firmwares) |
 | unbrick_sysnand | Flash a generated EmmcHacGen package placed in "cdj_package_files" on the SD to the sysnand |
 | unbrick_emunand | Flash a generated EmmcHacGen package placed in "cdj_package_files" on the SD to the emunand (could take some time to flash) |
 | unbrick_and_wip_sysnand | Flash a generated EmmcHacGen package placed in "cdj_package_files" on the SD to the sysnand and wip the sysnand (don't mix with "unbrick_sysnand", it will double the work time for nothing) |
 | unbrick_and_wip_emunand | Flash a generated EmmcHacGen package placed in "cdj_package_files" on the SD to the emunand and wip the emunand (don't mix with "unbrick_emunand", it will double the work time for nothing) (could take some time to flash) |
 | rm_erpt_sysnand | Remove ERPT save on sysnand, do it only if someone told you to do so |
 | rm_erpt_emunand | Remove ERPT save on emunand, do it only if someone told you to do so |
-| sync_joycons_sysnand | Synchronize joycons configs from sysnand to emunand, dangerous, use it if you know what you're doing |
-| sync_joycons_emunand | Synchronize joycons configs from emunand to sysnand, normaly not needed, dangerous, use it if you know what you're doing |
+| sync_joycons_sysnand | Synchronize joycons configs from sysnand to emunand, dangerous, use it if you know what you're doing (disabled for now cause not worked on new firmwares) |
+| sync_joycons_emunand | Synchronize joycons configs from emunand to sysnand, normaly not needed, dangerous, use it if you know what you're doing (disabled for now cause not worked on new firmwares) |
 | prodinfogen_flash_scratch_sysnand | Build and flash a PRODINFO from scratch on sysnand, dont't do it on an other nand than the console's one |
 | prodinfogen_flash_scratch_emunand | Build and flash a PRODINFO from scratch on emunand, dont't do it on an other nand than the console's one |
 | prodinfogen_flash_donor_sysnand | Build and flash a PRODINFO from donor on sysnand (need a decrypted donor PRODINFO and eventualy a donor keys file placed in the "switch" folder of the SD, like in ProdinfoGen payload), dont't do it on an other nand than the console's one |
@@ -104,6 +104,22 @@ If the payload freeze during keys dump try to modify the file "/source/keys/keys
 For "source/hos/pkg1.c" infos look at [this file from hekate](https://github.com/cTCaer/hekate/blob/master/bootloader/hos/hos.c).
 
 ## Changelog:
+
+### 0.12.1
+
+* Fix wip function and fix vol+ press wait when launching wip function.
+
+### 0.12.0
+
+* Update Hekate's BDK to it latest version and modify the project files to adapt them for these changes.
+
+### 0.11.1
+
+* An other fix for the menu display.
+
+### 0.11.0
+
+* Update to support firmware 22.0.0 and to fix an important bug in the menu display.
 
 ### 0.10.0
 
