@@ -813,6 +813,12 @@ void dump_keys(bool no_display) {
 	// emu_cfg.enabled = !h_cfg.emummc_force_disable;
 
 	minerva_change_freq(FREQ_800);
+
+	extern bool g_cmac_bypassed;
+	if (g_cmac_bypassed) {
+		log_printf(true, LOG_WARN, LOG_MSG_KEYS_DUMP_SAVE_MISMATCH);
+	}
+
 	if (no_display) {
 		gfx_con.mute = false;
 	} else {

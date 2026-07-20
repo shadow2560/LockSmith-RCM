@@ -165,6 +165,7 @@ const char * const g_log_messages[LOG_MSG_COUNT] = {
 	[LOG_MSG_PRODINFOGEN_KEYS_DUMP_END]   = "Keygen part done in %d us",
 	[LOG_MSG_PRODINFOGEN_END]   = "Done in %d us",
 	[LOG_MSG_KEYS_DUMP_BEGIN]   = "Lockpick-RCM keys dump begin",
+	[LOG_MSG_KEYS_DUMP_SAVE_MISMATCH]   = "Warning: Save header hash mismatch\n(Rebuilt NAND?). Valid CMAC detected.\nBypass successful.",
 	[LOG_MSG_KEYS_DUMP_ERROR_CRC_SSL_KEY]   = "Crc16 error reading SSL key.",
 	[LOG_MSG_KEYS_DUMP_ERROR_CRC_DEVICE_KEY]   = "Crc16 error reading device key.",
 	[LOG_MSG_KEYS_DUMP_INVALID_TICKET_KEYPAIR]   = "Invalid eticket keypair.",
