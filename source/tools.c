@@ -836,6 +836,7 @@ u8 *load_file_to_mem(const char *path, UINT *out_size) {
     return buf;
 }
 
+/*
 bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 	if (menu_on_sysnand) {
 		if (on_system_part) {
@@ -983,6 +984,7 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 		return false;
 	}
 }
+*/
 
 bool is_autorcm_enabled() {
 	if (!physical_emmc_ok) {
@@ -1399,7 +1401,7 @@ void auto_reboot() {
 }
 
 enum NcaTypes {
-	Porgram = 0,
+	Program = 0,
 	Meta,
 	Control,
 	Manual,

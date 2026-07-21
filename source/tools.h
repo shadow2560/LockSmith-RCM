@@ -124,7 +124,7 @@ void ui_spinner_clear();
 bool flash_or_dump_part(bool flash, const char *sd_filepath, const char *part_name, bool bis_read_or_write_enable);
 FRESULT easy_rename(const char* old, const char* new);
 FRESULT f_copy(const char *src, const char *dst);
-bool f_transfer_from_nands(const char *file_path, bool on_system_part);
+// bool f_transfer_from_nands(const char *file_path, bool on_system_part);
 void save_screenshot_and_go_back(const char* filename);
 void display_title();
 void cls();

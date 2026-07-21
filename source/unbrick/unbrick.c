@@ -247,6 +247,7 @@ void del_erpt_save() {
 	save_screenshot_and_go_back("del_erpt_save");
 }
 
+/*
 void remove_parental_control() {
 	cls();
 	log_printf(true, LOG_INFO, LOG_MSG_FNC_BEGIN, "parental control deletion");
@@ -270,6 +271,7 @@ void sync_joycons_between_nands() {
 	log_printf(true, LOG_OK, LOG_MSG_SYNCH_JOYCONS_SUCCESS);
 	save_screenshot_and_go_back("synch_joycons");
 }
+*/
 
 void build_prodinfo_and_flash(bool from_scratch) {
 	extern const char* DONOR_PRODINFO_FILENAME;
