@@ -273,7 +273,7 @@ void build_prodinfo(const char* optional_donor_filename, bool end_with_key_press
 
 	log_printf(true, LOG_INFO, LOG_MSG_PRODINFOGEN_KEYS_DUMPING);
 	key_storage_t keyset = {0};
-	dump_keys_prodinfogen(&keyset);
+	prepare_bis_keys(false, &keyset);
 
 	if (crc16_calc(keyset.master_key[0], 0x10) != 0x801B) {
 		log_printf(true, LOG_ERR, LOG_MSG_PRODINFOGEN_ERR_MASTER_KEY);

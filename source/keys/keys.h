@@ -46,8 +46,5 @@ void dump_keys();
 bool prepare_bis_keys(bool from_file, key_storage_t *keys_out);
 int save_mariko_partial_keys(u32 start, u32 count, bool append);
 void derive_amiibo_keys();
-void dump_prodinfo_after_keys();
-bool get_emmc_id_external(char *emmc_id_out);
-void dump_keys_prodinfogen(key_storage_t* output);
 
 #endif
