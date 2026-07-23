@@ -105,6 +105,17 @@ For "source/hos/pkg1.c" infos look at [this file from hekate](https://github.com
 
 ## Changelog:
 
+### 0.13.0
+
+* Remove joycons synchronization between nands and parental control removal cause these functions doesn't work on new firmwares.
+* Bypass rebuilt nand Titlekeys dump, largely inspired by [this pull request](https://github.com/THZoria/Lockpick_RCMaster/pull/3).
+* Remove specific dump function for Prodinfogen functions.
+
+### 0.12.2
+
+* add firmware 22.1.0 and 22.5.0 identifications.
+* Update Hekate's BDK.
+
 ### 0.12.1
 
 * Fix wip function and fix vol+ press wait when launching wip function.
