@@ -6,6 +6,7 @@
 #include <gfx_utils.h>
 #include "gfx/tui.h"
 #include "keys/keys.h"
+#include "keys/nca.h"
 #include <libs/fatfs/ff.h>
 #include <mem/heap.h>
 #include <sec/se.h>
@@ -127,6 +128,7 @@ bool verifyProdinfo(u8 *blob) {
 	return false;
 }
 
+/*
 void emunand_list_build(link_t *inilist, bool count_only) {
 	LIST_FOREACH_ENTRY(ini_sec_t, ini_sec, inilist, link){
 		if (ini_sec->type == INI_CHOICE){
@@ -215,15 +217,12 @@ void apply_emunand(const emunand_entry_t *e) {
 	h_cfg.emummc_force_disable = false;
 	menu_on_sysnand = false;
 
-	/*
-	if (e->sector == 0) {
-		s_printf(emu_cfg.path, "%s", e->base_path);
-	} else {
-		emu_cfg.path = NULL;
-	}
-
-	s_printf(emu_cfg.nintendo_path, "%s", e->nintendo_path);
-	*/
+	// if (e->sector == 0) {
+		// s_printf(emu_cfg.path, "%s", e->base_path);
+	// } else {
+		// emu_cfg.path = NULL;
+	// }
+	// s_printf(emu_cfg.nintendo_path, "%s", e->nintendo_path);
 }
 
 int emunand_select_menu() {
@@ -310,6 +309,7 @@ void emunand_list_free() {
 	emunands = NULL;
 	emunand_count = 0;
 }
+*/
 
 void debug_log_start_impl() {
 	FIL debug_log_file;
@@ -349,7 +349,7 @@ static bool part_is_encrypted(emmc_part_t *part) {
 	return false;
 }
 
-bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool set_partition, bool fatfs_mount, bool test_loaded_keys, u64 *part_size_bytes_buf, bool *is_boot_buf, bool *is_bis_buf, emmc_part_t *part_buf) {
+bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool set_partition, bool fatfs_mount, bool bis_cache_enable, bool test_loaded_keys, u64 *part_size_bytes_buf, bool *is_boot_buf, bool *is_bis_buf, emmc_part_t *part_buf) {
 	bool is_boot = false;
 	bool use_bis = false;
 	u64 part_size_bytes = 0;
@@ -401,8 +401,12 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 		/* determine if partition is BIS-encrypted */
 		use_bis = part_is_encrypted(part);
 		if (use_bis) {
-			/* init bis for this partition (cache disabled) */
-			nx_emmc_bis_init(part, true, 0);
+			/* init bis for this partition */
+			if (bis_cache_enable) {
+				nx_emmc_bis_init(part, true, 0);
+			} else {
+				nx_emmc_bis_init(part, false, 0);
+			}
 		}
 		if (strcmp(part_name, "PRODINFO") == 0 && test_loaded_keys) {
 			if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf, NULL)) {
@@ -483,12 +487,12 @@ bool delete_save_from_nand(const char* savename, bool on_system_part) {
 
 	if (on_system_part) {
 		log_printf(true, LOG_INFO, LOG_MSG_DELETE_SAVE_SYSTEM, savename);
-		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 			return false;
 		}
 	} else {
 		log_printf(true, LOG_INFO, LOG_MSG_DELETE_SAVE_USER, savename);
-		if (!mount_nand_part(&gpt, "USER", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 			return false;
 		}
 	}
@@ -621,9 +625,9 @@ bool file_is_closed = true;
 	LIST_INIT(gpt);
 	bool test_part;
 	if (!bis_read_or_write_enable) {
-		test_part = mount_nand_part(&gpt, part_name, true, true, false, false, &part_size_bytes, &is_boot, &use_bis, &part);
+		test_part = mount_nand_part(&gpt, part_name, true, true, false, false, false, &part_size_bytes, &is_boot, &use_bis, &part);
 	} else {
-		test_part = mount_nand_part(&gpt, part_name, true, true, false, true, &part_size_bytes, &is_boot, &use_bis, &part);
+		test_part = mount_nand_part(&gpt, part_name, true, true, false, false, true, &part_size_bytes, &is_boot, &use_bis, &part);
 	}
 	if (!test_part) {
 		if (flash) f_close(&fp);
@@ -883,11 +887,11 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 			emu_cfg.enabled = true;
 		}
 		if (on_system_part) {
-			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 				return false;
 			}
 		} else {
-			if (!mount_nand_part(&gpt, "USER", true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 				return false;
 			}
 		}
@@ -926,12 +930,12 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 			emu_cfg.enabled = false;
 		}
 		if (on_system_part) {
-			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 				res = FR_DISK_ERR;
 				break;
 			}
 		} else {
-			if (!mount_nand_part(&gpt, "USER", true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 				res = FR_DISK_ERR;
 				break;
 			}
@@ -1365,7 +1369,7 @@ void launch_payload(char *path, bool clear_screen)
 	payload_ptr = (void *)EXT_PAYLOAD_ADDR;
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 
 	hw_deinit(false);
 
@@ -1384,7 +1388,7 @@ void auto_reboot() {
 	if (h_cfg.t210b01 || h_cfg.rcm_patched) {
 		free((BYTE*)copy_buf);
 		free((u8*)cal0_buf);
-		emunand_list_free();
+		// emunand_list_free();
 		power_set_state(POWER_OFF_REBOOT);
 	} else {
 		if (f_stat("payload.bin", NULL) == FR_OK)
@@ -1400,6 +1404,7 @@ void auto_reboot() {
 	}
 }
 
+/*
 enum NcaTypes {
 	Program = 0,
 	Meta,
@@ -1427,7 +1432,7 @@ int GetNcaType(char *path){
 		return -1;
 	}
 
-	se_aes_crypt_xts(7,6,0,1, dec_header + 0x200, dec_header, 32, 1);
+	se_aes_crypt_xts(KS_NCA_HDR_TWEAK, KS_NCA_HDR_CRYPT, 0, 1, dec_header + 0x200, dec_header, 32, 1);
 
 	u8 ContentType = dec_header[0x205];
 	
@@ -1435,12 +1440,13 @@ int GetNcaType(char *path){
 	// free(dec_header);
 	return ContentType;
 }
+*/
 
 /*
 static ALWAYS_INLINE u8 *_read_pkg1(const pkg1_id_t **pkg1_id) {
 	// Read package1.
 	u8 *pkg1 = (u8 *)malloc(PKG1_MAX_SIZE);
-	if (!mount_nand_part(NULL, "BOOT0", true, true, false, false, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(NULL, "BOOT0", true, true, false, false, false, NULL, NULL, NULL, NULL)) {
 		return NULL;
 	}
 	if (emummc_storage_read(PKG1_OFFSET / EMMC_BLOCKSIZE, PKG1_MAX_SIZE / EMMC_BLOCKSIZE, pkg1)) {
@@ -1495,7 +1501,7 @@ void DumpFw() {
 	}
 
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		free(pkg1);
 		save_screenshot_and_go_back("fw_dump");
 		return;
@@ -1540,7 +1546,7 @@ void DumpFw() {
 	gfx_printf("Out: %s\nReading entries...\n", baseSdPath);
 
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back("fw_dump");
 		return;
 	}
@@ -1587,7 +1593,13 @@ void DumpFw() {
 
 		// s_printf(sysPath, (fno.fattrib & AM_DIR) ? "%s/%s/00" : "%s/%s", "bis:/Contents/registered", fno.fname);
 		s_printf(sysPath, "%s/%s", bis_fw_dir_path, fno.fname);
-		int contentType = GetNcaType(sysPath);
+		NcaHeader nca_test;
+		if (ReadNcaHeader(sysPath, NULL, &nca_test) != 0) {
+			res = 1;
+			break;
+		}
+		int contentType = (int) nca_test.content_type;
+		// int contentType = GetNcaType(sysPath);
 
 		if (contentType < 0){
 			res = 1;

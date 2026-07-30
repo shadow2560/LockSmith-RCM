@@ -79,7 +79,7 @@ static inline u32 _read_le_u32(const void *buffer, u32 offset)
 bool incognito()
 {
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL))
+	if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, false, true, NULL, NULL, NULL, NULL))
 		return false;
 
 	bool ok = false;

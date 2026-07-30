@@ -278,7 +278,7 @@ bool detect_firmware_from_nca(u8 *major, u8 *minor, u8 *patch)
 {
 	LIST_INIT(gpt);
 
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL))
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL))
 		return false;
 
 	DIR dir;

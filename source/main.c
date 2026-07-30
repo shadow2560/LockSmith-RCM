@@ -82,15 +82,18 @@ bool menu_on_sysnand = false;
 bool bis_from_console = true;
 bool bis_loaded = false;
 char emmc_id[9] = {0};  // 8 hex chars + null terminator
-int emunand_count = 0;
-int prev_sec_emunand = 0;
-int cur_sec_emunand = 0;
-emunand_entry_t *emunands = NULL;
 bool have_sd = false;
 bool have_minerva = false;
 u32 COPY_BUF_SIZE = 0x10000;
 BYTE* copy_buf;
 u8* cal0_buf;
+
+/*
+int emunand_count = 0;
+int prev_sec_emunand = 0;
+int cur_sec_emunand = 0;
+emunand_entry_t *emunands = NULL;
+*/
 
 typedef struct {
 	const char *name;
@@ -287,7 +290,7 @@ static void _ipl_reload()
 {
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 	hw_deinit(false);
 
 	// Reload payload.
@@ -298,28 +301,28 @@ static void _ipl_reload()
 static void STATE_POWER_OFF() {
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 	power_set_state(POWER_OFF_RESET);
 }
 
 static void STATE_REBOOT_FULL() {
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 	power_set_state(POWER_OFF_REBOOT);
 }
 
 static void STATE_REBOOT_RCM() {
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 	power_set_state(REBOOT_RCM);
 }
 
 static void STATE_REBOOT_BYPASS_FUSES() {
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 	power_set_state(REBOOT_BYPASS_FUSES);
 }
 
@@ -357,13 +360,15 @@ void switch_nand_work() {
 		return;
 	} else {
 		if (menu_on_sysnand) {
-			// h_cfg.emummc_force_disable = false;
-			// emu_cfg.enabled = true;
-			// menu_on_sysnand = false;
+			h_cfg.emummc_force_disable = false;
+			emu_cfg.enabled = true;
+			menu_on_sysnand = false;
+/*
 			select_and_apply_emunand();
 			if (emunand_count > 1 && prev_sec_emunand != cur_sec_emunand) {
 				reload_keys();
 			}
+*/
 		} else {
 			h_cfg.emummc_force_disable = true;
 			emu_cfg.enabled = false;
@@ -401,7 +406,7 @@ static void dump_mariko_partial_keys() {
 			mark_for_shutdown = true;
 			free((BYTE*)copy_buf);
 			free((u8*)cal0_buf);
-			emunand_list_free();
+			// emunand_list_free();
 			if (!called_from_config_files) {
 				log_printf(false, LOG_WARN, LOG_MSG_PRESS_KEY_TO_SHUTDOWN);
 				btn_wait();
@@ -512,7 +517,7 @@ static void dump_saves() {
 		return;
 	}
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back("saves_dump");
 		return;
 	}
@@ -541,7 +546,7 @@ static void verify_and_fix_prodinfo(bool from_file) {
 		s_printf(path, "sd:/LockSmith-RCM/backups/%s/PRODINFO_emunand_dec.bin", emmc_id);
 	}
 	if (!from_file) {
-		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, false, true, NULL, NULL, NULL, NULL)) {
 			// free(cal0_buf);
 			save_screenshot_and_go_back("test_prodinfo_nand");
 			return;
@@ -869,14 +874,14 @@ bool init_and_verify_bis_keys(bool from_file) {
 	if (physical_emmc_ok) {
 		h_cfg.emummc_force_disable = true;
 		emu_cfg.enabled = false;
-		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, false, true, NULL, NULL, NULL, NULL)) {
 			debug_log_write("Sysnand PRODINFO read  error\n");
 			sysmmc_available = false;
 			menu_on_sysnand = false;
 		} else {
 			unmount_nand_part(&gpt, false, true, true, false);
 		}
-		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 			debug_log_write("Sysnand SYSTEM read  error\n");
 			sysmmc_available = false;
 			menu_on_sysnand = false;
@@ -890,14 +895,14 @@ bool init_and_verify_bis_keys(bool from_file) {
 	if (emu_cfg.sector != 0 || emu_cfg.path != NULL) {
 		h_cfg.emummc_force_disable = false;
 		emu_cfg.enabled = true;
-		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "PRODINFO", true, true, false, false, true, NULL, NULL, NULL, NULL)) {
 			debug_log_write("Emunand PRODINFO read  error\n");
 			emummc_available = false;
 			menu_on_sysnand = true;
 		} else {
 			unmount_nand_part(&gpt, false, true, true, false);
 		}
-		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 			debug_log_write("Emunand SYSTEM read  error\n");
 			emummc_available = false;
 			menu_on_sysnand = true;
@@ -1042,7 +1047,7 @@ void init_payload() {
 			log_free();
 			free((BYTE*)copy_buf);
 			free((u8*)cal0_buf);
-			emunand_list_free();
+			// emunand_list_free();
 			if (mark_for_shutdown) power_set_state(POWER_OFF_RESET);
 		}
 	}
@@ -1123,12 +1128,21 @@ skip_lp0_minerva_config:
 
 	// Load emuMMC configuration from SD.
 	emummc_load_cfg();
+	if (emu_cfg.sector != 0 || emu_cfg.path) {
+		emu_cfg.enabled = true;
+		h_cfg.emummc_force_disable = false;
+		menu_on_sysnand = false;
+	} else {
+		emu_cfg.enabled = false;
+		h_cfg.emummc_force_disable = true;
+		menu_on_sysnand = true;
+	}
 	debug_log_start();
-	build_emunand_list();
+	// build_emunand_list();
 
 	check_physical_nand();
 
-	select_and_apply_emunand();
+	// select_and_apply_emunand();
 
 	gfx_clear_grey(0x1B);
 	display_backlight_brightness(150, 1000);
@@ -1144,7 +1158,7 @@ init_payload();
 	}
 	free((BYTE*)copy_buf);
 	free((u8*)cal0_buf);
-	emunand_list_free();
+	// emunand_list_free();
 
 	// Halt BPMP if we managed to get out of execution.
 	while (true)

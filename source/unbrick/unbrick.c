@@ -44,13 +44,13 @@ void unbrick(const char *sd_folder_path, bool reset) {
 		return;
 	}
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back(screenshot_name);
 		return;
 	}
 	unmount_nand_part(&gpt, false, true, true, true);
 	if (reset) {
-		if (!mount_nand_part(&gpt, "USER", true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 			save_screenshot_and_go_back(screenshot_name);
 			return;
 		} else {
@@ -89,7 +89,7 @@ void unbrick(const char *sd_folder_path, bool reset) {
 		return;
 	}
 
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back(screenshot_name);
 		return;
 	}
@@ -115,7 +115,7 @@ f_cp_or_rm_rf("bis:/Contents/registered", NULL);
 	}
 	if (reset) {
 		unmount_nand_part(&gpt, false, true, false, true);
-		if (!mount_nand_part(&gpt, "USER", false, false, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "USER", false, false, true, true, true, NULL, NULL, NULL, NULL)) {
 			save_screenshot_and_go_back(screenshot_name);
 			return;
 		}
@@ -153,7 +153,7 @@ void wip_nand() {
 	}
 
 	LIST_INIT(gpt);
-	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back("wip_nand");
 		return;
 	}
@@ -195,7 +195,7 @@ void wip_nand() {
 	f_unlink("bis:/PRF2SAFE.RCV");
 	unmount_nand_part(&gpt, false, true, false, true);
 
-	if (!mount_nand_part(&gpt, "USER", false, false, true, true, NULL, NULL, NULL, NULL)) {
+	if (!mount_nand_part(&gpt, "USER", false, false, true, true, true, NULL, NULL, NULL, NULL)) {
 		save_screenshot_and_go_back("wip_nand");
 		return;
 	}

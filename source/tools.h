@@ -33,11 +33,17 @@ typedef struct {
 	u32 y;
 } ui_pos_t;
 
+/*
 typedef struct {
 	char *name;
 	char *base_path;
 } emunand_entry_t;
 #define MAX_EMUNANDS 12
+extern int emunand_count;
+extern int prev_sec_emunand;
+extern int cur_sec_emunand;
+extern emunand_entry_t *emunands;
+*/
 
 #define MAX_STACK_DEPTH 12
 typedef struct {
@@ -65,10 +71,6 @@ extern bool called_from_AIO_LS_Pack_Updater;
 extern bool bis_from_console;
 extern bool bis_loaded;
 extern char emmc_id[9];
-extern int emunand_count;
-extern int prev_sec_emunand;
-extern int cur_sec_emunand;
-extern emunand_entry_t *emunands;
 
 /* Legacy color definitions - Kept for backward compatibility */
 #define COLOR_RED    0xFFFF0000  // Now matches Hekate TXT_CLR_ERROR
@@ -114,7 +116,7 @@ bool verifyProdinfo(u8 *blob);
 void debug_log_start_impl();
 void debug_log_write_impl(const char *text, ...);
 bool get_emmc_id(char *emmc_id_out);
-bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool set_partition, bool fatfs_mount, bool test_loaded_keys, u64 *part_size_bytes_buf, bool *is_boot_buf, bool *is_bis_buf, emmc_part_t *part_buf);
+bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool set_partition, bool fatfs_mount, bool bis_cache_enable, bool test_loaded_keys, u64 *part_size_bytes_buf, bool *is_boot_buf, bool *is_bis_buf, emmc_part_t *part_buf);
 void unmount_nand_part(link_t *gpt, bool is_boot_part, bool is_bis, bool nand_close, bool fatfs_unmount);
 bool wait_vol_plus();
 bool delete_save_from_nand(const char* savename, bool on_system_part);
@@ -130,9 +132,9 @@ void display_title();
 void cls();
 FRESULT f_cp_or_rm_rf(const char *src_root, const char *dst_root);
 bool is_autorcm_enabled();
-void build_emunand_list();
-void select_and_apply_emunand();
-void emunand_list_free();
+// void build_emunand_list();
+// void select_and_apply_emunand();
+// void emunand_list_free();
 int save_fb_to_bmp(const char* filename);
 void launch_payload(char *path, bool clear_screen);
 void auto_reboot();
