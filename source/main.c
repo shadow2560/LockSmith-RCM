@@ -176,7 +176,7 @@ void launch_tools() {
 	gfx_clear_grey(0x1B);
 	gfx_con_setpos(0, 0);
 
-	if (sd_mount()) {
+	if (!sd_mount()) {
 		dir = (char *)malloc(256);
 
 		memcpy(dir, "sd:/bootloader/payloads", 24);

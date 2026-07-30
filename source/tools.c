@@ -402,7 +402,7 @@ bool mount_nand_part(link_t *gpt, const char *part_name, bool nand_open, bool se
 		use_bis = part_is_encrypted(part);
 		if (use_bis) {
 			/* init bis for this partition (cache disabled) */
-			nx_emmc_bis_init(part, false, 0);
+			nx_emmc_bis_init(part, true, 0);
 		}
 		if (strcmp(part_name, "PRODINFO") == 0 && test_loaded_keys) {
 			if (!cal0_read(KS_BIS_00_TWEAK, KS_BIS_00_CRYPT, cal0_buf, NULL)) {
