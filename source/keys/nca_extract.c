@@ -200,7 +200,7 @@ static int _decrypt_package1_cbc(u8 *pkg1, u32 total_size, const u8 *pk08) {
     u8 *enc = pkg1 + BODY_OFF;
 
     se_aes_key_set(KS_AES_ECB, pk08, SE_KEY_128_SIZE);
-    se_aes_iv_set(KS_AES_ECB, iv, 0XF);
+    se_aes_iv_set(KS_AES_ECB, iv, 0xF);
     se_aes_crypt_cbc(KS_AES_ECB, DECRYPT, enc, enc, pk11_size);
 
     return 0;
