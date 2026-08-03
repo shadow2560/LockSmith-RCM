@@ -831,7 +831,12 @@ static void _derive_keys() {
 
 	if (h_cfg.t210b01) {
 		// On Mariko, save only relevant key set
-		_save_keys_to_sd(keys, titlekey_buffer, is_dev, NULL, 0);
+		if (!is_dev) {
+			_save_keys_to_sd(keys, titlekey_buffer, is_dev, &new_keys, new_gen_mkr);
+		} else {
+			_save_keys_to_sd(keys, titlekey_buffer, is_dev, &new_keys_dev, new_gen_mkr);
+		}
+		// _save_keys_to_sd(keys, titlekey_buffer, is_dev, NULL, 0);
 	} else {
 		// On Erista, save both prod and dev key sets
 		_save_keys_to_sd(&prod_keys, titlekey_buffer, false, &new_keys, new_gen_mkr);
