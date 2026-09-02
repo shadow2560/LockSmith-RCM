@@ -24,16 +24,16 @@
 #define CURRENT_KEY_GENERATION KB_FIRMWARE_VERSION_MAX
 
 typedef struct {
-    u8 master_kek[SE_KEY_128_SIZE];
-    u8 master_key[SE_KEY_128_SIZE];
-    u8 package2_key[SE_KEY_128_SIZE];
-    u8 titlekek[SE_KEY_128_SIZE];
-    u8 key_area_key_application[SE_KEY_128_SIZE];
-    u8 key_area_key_ocean[SE_KEY_128_SIZE];
-    u8 key_area_key_system[SE_KEY_128_SIZE];
-    u8 tsec_root_key_00[SE_KEY_128_SIZE];
-    u8 tsec_root_key_01[SE_KEY_128_SIZE];
-    u8 tsec_root_key_02[SE_KEY_128_SIZE];
+	u8 master_kek[SE_KEY_128_SIZE];
+	u8 master_key[SE_KEY_128_SIZE];
+	u8 package2_key[SE_KEY_128_SIZE];
+	u8 titlekek[SE_KEY_128_SIZE];
+	u8 key_area_key_application[SE_KEY_128_SIZE];
+	u8 key_area_key_ocean[SE_KEY_128_SIZE];
+	u8 key_area_key_system[SE_KEY_128_SIZE];
+	u8 tsec_root_key_00[SE_KEY_128_SIZE];
+	u8 tsec_root_key_01[SE_KEY_128_SIZE];
+	u8 tsec_root_key_02[SE_KEY_128_SIZE];
 } new_gen_keys_t;
 
 // package1_key_08 = AES_ECB_ENCRYPT(tsec_auth_signature_02, AES_ECB_DECRYPT("HOVI_ENC_KEY_PRD", hovi_kek))

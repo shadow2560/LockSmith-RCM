@@ -13,4 +13,4 @@
 // ever yields the master_kek_source for its own live revision). Range is empty
 // (out_gap_start > out_gap_end) when out_mkr == CURRENT_KEY_GENERATION + 1.
 int extract_new_gen_keys(key_storage_t *keys, new_gen_keys_t *out, new_gen_keys_t *out_dev,
-                          int *out_mkr, int *out_gap_start, int *out_gap_end);
+						  int *out_mkr, int *out_gap_start, int *out_gap_end);

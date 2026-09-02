@@ -84,60 +84,60 @@ static void _save_key_family(const char *name, const void *data, u32 start_key, 
 }
 
 static void _derive_master_keys_from_vectors_and_sources(key_storage_t *keys, bool is_dev) {
-    minerva_periodic_training();
+	minerva_periodic_training();
 
-    // master_key_0a = real master key index 0x0A = KB_FIRMWARE_VERSION_910 (9.1.0).
-    u32 anchor_offset = KB_FIRMWARE_VERSION_910 - KB_FIRMWARE_VERSION_620;
-    u32 anchor_index  = KB_FIRMWARE_VERSION_910;
+	// master_key_0a = real master key index 0x0A = KB_FIRMWARE_VERSION_910 (9.1.0).
+	u32 anchor_offset = KB_FIRMWARE_VERSION_910 - KB_FIRMWARE_VERSION_620;
+	u32 anchor_index  = KB_FIRMWARE_VERSION_910;
 
-    // master_kek_06/07 (6.2.0/7.0.0) use the older tsec_root_key_00/_01 revisions
-    u8 tsec_root_key_00[SE_KEY_128_SIZE], tsec_root_key_01[SE_KEY_128_SIZE], tsec_root_key_02_scratch[SE_KEY_128_SIZE];
-    if (is_dev)
-        tsec_derive_root_keys_dev_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02_scratch);
-    else
-        tsec_derive_root_keys_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02_scratch);
-    load_aes_key(KS_AES_ECB, keys->master_kek[KB_FIRMWARE_VERSION_620],     tsec_root_key_00, master_kek_sources[0]); // 6.2.0
-    load_aes_key(KS_AES_ECB, keys->master_kek[KB_FIRMWARE_VERSION_620 + 1], tsec_root_key_01, master_kek_sources[1]); // 7.0.0
+	// master_kek_06/07 (6.2.0/7.0.0) use the older tsec_root_key_00/_01 revisions
+	u8 tsec_root_key_00[SE_KEY_128_SIZE], tsec_root_key_01[SE_KEY_128_SIZE], tsec_root_key_02_scratch[SE_KEY_128_SIZE];
+	if (is_dev)
+		tsec_derive_root_keys_dev_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02_scratch);
+	else
+		tsec_derive_root_keys_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02_scratch);
+	load_aes_key(KS_AES_ECB, keys->master_kek[KB_FIRMWARE_VERSION_620],     tsec_root_key_00, master_kek_sources[0]); // 6.2.0
+	load_aes_key(KS_AES_ECB, keys->master_kek[KB_FIRMWARE_VERSION_620 + 1], tsec_root_key_01, master_kek_sources[1]); // 7.0.0
 
-    // master_kek_root_key_02: every master_kek_sources entry (8.1.0 and up).
-    // Starts at KB_FIRMWARE_VERSION_810 - KB_FIRMWARE_VERSION_620, not 0 — indices
-    // 0/1 (6.2.0/7.0.0) were already handled above with tsec_root_key_00/_01 and
-    // must not be overwritten with the current-generation root key.
-    for (u32 i = KB_FIRMWARE_VERSION_810 - KB_FIRMWARE_VERSION_620; i < ARRAY_SIZE(master_kek_sources); i++) {
-        load_aes_key(KS_AES_ECB, keys->master_kek[i + KB_FIRMWARE_VERSION_620], keys->tsec_root_key, master_kek_sources[i]);
-    }
+	// master_kek_root_key_02: every master_kek_sources entry (8.1.0 and up).
+	// Starts at KB_FIRMWARE_VERSION_810 - KB_FIRMWARE_VERSION_620, not 0 — indices
+	// 0/1 (6.2.0/7.0.0) were already handled above with tsec_root_key_00/_01 and
+	// must not be overwritten with the current-generation root key.
+	for (u32 i = KB_FIRMWARE_VERSION_810 - KB_FIRMWARE_VERSION_620; i < ARRAY_SIZE(master_kek_sources); i++) {
+		load_aes_key(KS_AES_ECB, keys->master_kek[i + KB_FIRMWARE_VERSION_620], keys->tsec_root_key, master_kek_sources[i]);
+	}
 
-    // 1. Derive master_key_0a (9.1.0) directly from its master_kek (already derived
-    // above, since it's part of the master_kek_root_key_02 sweep).
-    load_aes_key(KS_AES_ECB, keys->master_key[anchor_index], keys->master_kek[anchor_index], master_key_source);
+	// 1. Derive master_key_0a (9.1.0) directly from its master_kek (already derived
+	// above, since it's part of the master_kek_root_key_02 sweep).
+	load_aes_key(KS_AES_ECB, keys->master_key[anchor_index], keys->master_kek[anchor_index], master_key_source);
 
-    minerva_periodic_training();
+	minerva_periodic_training();
 
-    // 2. Backward-chain via master_key_vectors from key_0a (9.1.0) down to key_00 —
-    // matches master_keys_prod()/master_keys_dev()'s use of master_key_vectors[0:8]
-    // anchored at master_key_0a. This is what correctly reconstructs 9.0.0, 8.1.0,
-    // 7.0.0, and 6.2.0. Applies identically on Erista and Mariko, since master keys
-    // are shared across both hardware families for any given firmware generation
-    // (confirmed by Atmosphere's DeriveKeysErista/DeriveKeysMariko both funneling
-    // into the same shared DeriveMasterKeys() after their own hardware-specific seed).
-    for (u32 i = anchor_index; i > 0; i--) {
-        load_aes_key(KS_AES_ECB, keys->master_key[i - 1], keys->master_key[i], is_dev ? master_key_vectors_dev[i] : master_key_vectors[i]);
-    }
+	// 2. Backward-chain via master_key_vectors from key_0a (9.1.0) down to key_00 —
+	// matches master_keys_prod()/master_keys_dev()'s use of master_key_vectors[0:8]
+	// anchored at master_key_0a. This is what correctly reconstructs 9.0.0, 8.1.0,
+	// 7.0.0, and 6.2.0. Applies identically on Erista and Mariko, since master keys
+	// are shared across both hardware families for any given firmware generation
+	// (confirmed by Atmosphere's DeriveKeysErista/DeriveKeysMariko both funneling
+	// into the same shared DeriveMasterKeys() after their own hardware-specific seed).
+	for (u32 i = anchor_index; i > 0; i--) {
+		load_aes_key(KS_AES_ECB, keys->master_key[i - 1], keys->master_key[i], is_dev ? master_key_vectors_dev[i] : master_key_vectors[i]);
+	}
 
-    // 3. master_kek_sources[anchor_offset + 1] and above (12.1.0 and above, "0b and
-    // above") are each independently derivable the same way as 0a — matches
-    // new_master_keys_prod/new_master_keys_dev.
-    for (u32 i = anchor_offset + 1; i < ARRAY_SIZE(master_kek_sources); i++) {
-        u32 key_index = i + KB_FIRMWARE_VERSION_620;
-        load_aes_key(KS_AES_ECB, keys->master_key[key_index], keys->master_kek[key_index], master_key_source);
-    }
+	// 3. master_kek_sources[anchor_offset + 1] and above (12.1.0 and above, "0b and
+	// above") are each independently derivable the same way as 0a — matches
+	// new_master_keys_prod/new_master_keys_dev.
+	for (u32 i = anchor_offset + 1; i < ARRAY_SIZE(master_kek_sources); i++) {
+		u32 key_index = i + KB_FIRMWARE_VERSION_620;
+		load_aes_key(KS_AES_ECB, keys->master_key[key_index], keys->master_kek[key_index], master_key_source);
+	}
 
-    load_aes_key(KS_AES_ECB, keys->temp_key, keys->master_key[0], is_dev ? master_key_vectors_dev[0] : master_key_vectors[0]);
+	load_aes_key(KS_AES_ECB, keys->temp_key, keys->master_key[0], is_dev ? master_key_vectors_dev[0] : master_key_vectors[0]);
 
-    if (key_exists(keys->temp_key)) {
-        log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_MASTER_KEYS, is_dev ? "dev" : "prod");
-        memset(keys->master_key, 0, sizeof(keys->master_key));
-    }
+	if (key_exists(keys->temp_key)) {
+		log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_MASTER_KEYS, is_dev ? "dev" : "prod");
+		memset(keys->master_key, 0, sizeof(keys->master_key));
+	}
 }
 
 static void _derive_keyblob_keys(key_storage_t *keys) {
@@ -195,54 +195,54 @@ static void _derive_keyblob_keys(key_storage_t *keys) {
 static void _derive_master_keys(key_storage_t *prod_keys, key_storage_t *dev_keys, bool is_dev) {
 	key_storage_t *keys = is_dev ? dev_keys : prod_keys;
 
-    // secure_boot_key: pure fuse register read, identical on Erista and Mariko —
-    // matches AesKeySlot_SecureBoot being available before either DeriveKeysErista()
-    // or DeriveKeysMariko() runs in Atmosphere's own fusee_key_derivation.cpp.
-    if (FUSE(FUSE_PRIVATE_KEY0) != 0xFFFFFFFF) {
-        prod_keys->secure_boot_key[0] = FUSE(FUSE_PRIVATE_KEY0);
-        prod_keys->secure_boot_key[1] = FUSE(FUSE_PRIVATE_KEY1);
-        prod_keys->secure_boot_key[2] = FUSE(FUSE_PRIVATE_KEY2);
-        prod_keys->secure_boot_key[3] = FUSE(FUSE_PRIVATE_KEY3);
-        memcpy(dev_keys->secure_boot_key, prod_keys->secure_boot_key, sizeof(prod_keys->secure_boot_key));
-    }
+	// secure_boot_key: pure fuse register read, identical on Erista and Mariko —
+	// matches AesKeySlot_SecureBoot being available before either DeriveKeysErista()
+	// or DeriveKeysMariko() runs in Atmosphere's own fusee_key_derivation.cpp.
+	if (FUSE(FUSE_PRIVATE_KEY0) != 0xFFFFFFFF) {
+		prod_keys->secure_boot_key[0] = FUSE(FUSE_PRIVATE_KEY0);
+		prod_keys->secure_boot_key[1] = FUSE(FUSE_PRIVATE_KEY1);
+		prod_keys->secure_boot_key[2] = FUSE(FUSE_PRIVATE_KEY2);
+		prod_keys->secure_boot_key[3] = FUSE(FUSE_PRIVATE_KEY3);
+		memcpy(dev_keys->secure_boot_key, prod_keys->secure_boot_key, sizeof(prod_keys->secure_boot_key));
+	}
 
-    if (h_cfg.t210b01) {
-        // Mariko: device_key_4x is derived directly from SBK — Mariko has no
-        // AesKeySlot_Device/keyblob concept at all, matching Atmosphere's
-        // DeriveKeysMariko(), which feeds AesKeySlot_SecureBoot straight into
-        // DeviceMasterKeySourceKekSource instead of going through AesKeySlot_Device.
-        minerva_periodic_training();
-        se_aes_crypt_block_ecb(KS_SECURE_BOOT, DECRYPT, keys->device_key_4x, device_master_key_source_kek_source);
-    } else {
-        // Erista: run TSEC keygen firmware for tsec_key (console-unique; Mariko never
-        // runs this at all, confirmed by Atmosphere's DeriveAllKeys() only calling
-        // tsec::RunTsecFirmware() when soc_type == SocType_Erista).
-        if (run_ams_keygen(keys)) {
-            log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
-            return;
-        }
+	if (h_cfg.t210b01) {
+		// Mariko: device_key_4x is derived directly from SBK — Mariko has no
+		// AesKeySlot_Device/keyblob concept at all, matching Atmosphere's
+		// DeriveKeysMariko(), which feeds AesKeySlot_SecureBoot straight into
+		// DeviceMasterKeySourceKekSource instead of going through AesKeySlot_Device.
+		minerva_periodic_training();
+		se_aes_crypt_block_ecb(KS_SECURE_BOOT, DECRYPT, keys->device_key_4x, device_master_key_source_kek_source);
+	} else {
+		// Erista: run TSEC keygen firmware for tsec_key (console-unique; Mariko never
+		// runs this at all, confirmed by Atmosphere's DeriveAllKeys() only calling
+		// tsec::RunTsecFirmware() when soc_type == SocType_Erista).
+		if (run_ams_keygen(keys)) {
+			log_printf(true, LOG_ERR, LOG_MSG_KEYS_DUMP_ERR_RUN_KEYGEN);
+			return;
+		}
 
-        u8 *aes_keys = (u8 *)calloc(1, SZ_4K);
-        se_get_aes_keys(aes_keys + SZ_2K, aes_keys, SE_KEY_128_SIZE);
-        memcpy(&dev_keys->tsec_key,  aes_keys + KS_TSEC * SE_KEY_128_SIZE, SE_KEY_128_SIZE);
-        memcpy(&prod_keys->tsec_key, aes_keys + KS_TSEC * SE_KEY_128_SIZE, SE_KEY_128_SIZE);
-        free(aes_keys);
+		u8 *aes_keys = (u8 *)calloc(1, SZ_4K);
+		se_get_aes_keys(aes_keys + SZ_2K, aes_keys, SE_KEY_128_SIZE);
+		memcpy(&dev_keys->tsec_key,  aes_keys + KS_TSEC * SE_KEY_128_SIZE, SE_KEY_128_SIZE);
+		memcpy(&prod_keys->tsec_key, aes_keys + KS_TSEC * SE_KEY_128_SIZE, SE_KEY_128_SIZE);
+		free(aes_keys);
 
-        _derive_keyblob_keys(keys);
-    }
+		_derive_keyblob_keys(keys);
+	}
 
-    // tsec_root_key: pure software (hovi_kek), independent of Erista/Mariko — master
-    // keys are shared across both hardware families for any given firmware generation.
-    u8 tsec_root_key_00[SE_KEY_128_SIZE], tsec_root_key_01[SE_KEY_128_SIZE], tsec_root_key_02[SE_KEY_128_SIZE];
-    tsec_derive_root_keys_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02);
-    memcpy(&prod_keys->tsec_root_key, tsec_root_key_02, SE_KEY_128_SIZE);
+	// tsec_root_key: pure software (hovi_kek), independent of Erista/Mariko — master
+	// keys are shared across both hardware families for any given firmware generation.
+	u8 tsec_root_key_00[SE_KEY_128_SIZE], tsec_root_key_01[SE_KEY_128_SIZE], tsec_root_key_02[SE_KEY_128_SIZE];
+	tsec_derive_root_keys_sw(tsec_root_key_00, tsec_root_key_01, tsec_root_key_02);
+	memcpy(&prod_keys->tsec_root_key, tsec_root_key_02, SE_KEY_128_SIZE);
 
-    u8 tsec_root_key_00_dev[SE_KEY_128_SIZE], tsec_root_key_01_dev[SE_KEY_128_SIZE], tsec_root_key_02_dev[SE_KEY_128_SIZE];
-    tsec_derive_root_keys_dev_sw(tsec_root_key_00_dev, tsec_root_key_01_dev, tsec_root_key_02_dev);
-    memcpy(&dev_keys->tsec_root_key, tsec_root_key_02_dev, SE_KEY_128_SIZE);
+	u8 tsec_root_key_00_dev[SE_KEY_128_SIZE], tsec_root_key_01_dev[SE_KEY_128_SIZE], tsec_root_key_02_dev[SE_KEY_128_SIZE];
+	tsec_derive_root_keys_dev_sw(tsec_root_key_00_dev, tsec_root_key_01_dev, tsec_root_key_02_dev);
+	memcpy(&dev_keys->tsec_root_key, tsec_root_key_02_dev, SE_KEY_128_SIZE);
 
-    _derive_master_keys_from_vectors_and_sources(prod_keys, false);
-    _derive_master_keys_from_vectors_and_sources(dev_keys, true);
+	_derive_master_keys_from_vectors_and_sources(prod_keys, false);
+	_derive_master_keys_from_vectors_and_sources(dev_keys, true);
 }
 
 static void _derive_bis_keys(key_storage_t *keys) {
@@ -666,65 +666,65 @@ static void _save_keys_to_sd(key_storage_t *keys, titlekey_buffer_t *titlekey_bu
 	s_printf(root_key_name + 14, "%02x", TSEC_ROOT_KEY_VERSION);
 	_save_key(root_key_name, keys->tsec_root_key, SE_KEY_128_SIZE, text_buffer);
 
-    {
-        u8 root_kek_00[SE_KEY_128_SIZE], root_kek_01[SE_KEY_128_SIZE], root_kek_02[SE_KEY_128_SIZE];
-        u8 pkg1_kek_06[SE_KEY_128_SIZE], pkg1_kek_07[SE_KEY_128_SIZE], pkg1_kek_08[SE_KEY_128_SIZE];
-        u8 pkg1_mac_kek_06[SE_KEY_128_SIZE], pkg1_mac_kek_07[SE_KEY_128_SIZE], pkg1_mac_kek_08[SE_KEY_128_SIZE];
-        u8 pkg1_key_06[SE_KEY_128_SIZE], pkg1_key_07[SE_KEY_128_SIZE], pkg1_key_08[SE_KEY_128_SIZE];
-        u8 pkg1_mac_key_06[SE_KEY_128_SIZE], pkg1_mac_key_07[SE_KEY_128_SIZE], pkg1_mac_key_08[SE_KEY_128_SIZE];
+	{
+		u8 root_kek_00[SE_KEY_128_SIZE], root_kek_01[SE_KEY_128_SIZE], root_kek_02[SE_KEY_128_SIZE];
+		u8 pkg1_kek_06[SE_KEY_128_SIZE], pkg1_kek_07[SE_KEY_128_SIZE], pkg1_kek_08[SE_KEY_128_SIZE];
+		u8 pkg1_mac_kek_06[SE_KEY_128_SIZE], pkg1_mac_kek_07[SE_KEY_128_SIZE], pkg1_mac_kek_08[SE_KEY_128_SIZE];
+		u8 pkg1_key_06[SE_KEY_128_SIZE], pkg1_key_07[SE_KEY_128_SIZE], pkg1_key_08[SE_KEY_128_SIZE];
+		u8 pkg1_mac_key_06[SE_KEY_128_SIZE], pkg1_mac_key_07[SE_KEY_128_SIZE], pkg1_mac_key_08[SE_KEY_128_SIZE];
 
-        if (is_dev) {
-            tsec_derive_root_kek_dev_sw(root_kek_00, root_kek_01, root_kek_02);
-            tsec_derive_package1_kek_dev_sw(pkg1_kek_06, pkg1_kek_07, pkg1_kek_08);
-            tsec_derive_package1_mac_kek_dev_sw(pkg1_mac_kek_06, pkg1_mac_kek_07, pkg1_mac_kek_08);
-            tsec_derive_package1_keys_dev_sw(pkg1_key_06, pkg1_key_07, pkg1_key_08);
-            tsec_derive_package1_mac_keys_dev_sw(pkg1_mac_key_06, pkg1_mac_key_07, pkg1_mac_key_08);
-        } else {
-            tsec_derive_root_kek_sw(root_kek_00, root_kek_01, root_kek_02);
-            tsec_derive_package1_kek_sw(pkg1_kek_06, pkg1_kek_07, pkg1_kek_08);
-            tsec_derive_package1_mac_kek_sw(pkg1_mac_kek_06, pkg1_mac_kek_07, pkg1_mac_kek_08);
-            tsec_derive_package1_keys_sw(pkg1_key_06, pkg1_key_07, pkg1_key_08);
-            tsec_derive_package1_mac_keys_sw(pkg1_mac_key_06, pkg1_mac_key_07, pkg1_mac_key_08);
-        }
+		if (is_dev) {
+			tsec_derive_root_kek_dev_sw(root_kek_00, root_kek_01, root_kek_02);
+			tsec_derive_package1_kek_dev_sw(pkg1_kek_06, pkg1_kek_07, pkg1_kek_08);
+			tsec_derive_package1_mac_kek_dev_sw(pkg1_mac_kek_06, pkg1_mac_kek_07, pkg1_mac_kek_08);
+			tsec_derive_package1_keys_dev_sw(pkg1_key_06, pkg1_key_07, pkg1_key_08);
+			tsec_derive_package1_mac_keys_dev_sw(pkg1_mac_key_06, pkg1_mac_key_07, pkg1_mac_key_08);
+		} else {
+			tsec_derive_root_kek_sw(root_kek_00, root_kek_01, root_kek_02);
+			tsec_derive_package1_kek_sw(pkg1_kek_06, pkg1_kek_07, pkg1_kek_08);
+			tsec_derive_package1_mac_kek_sw(pkg1_mac_kek_06, pkg1_mac_kek_07, pkg1_mac_kek_08);
+			tsec_derive_package1_keys_sw(pkg1_key_06, pkg1_key_07, pkg1_key_08);
+			tsec_derive_package1_mac_keys_sw(pkg1_mac_key_06, pkg1_mac_key_07, pkg1_mac_key_08);
+		}
 
-        SAVE_KEY_VAR(tsec_root_kek_00,     root_kek_00);
-        SAVE_KEY_VAR(tsec_root_kek_01,     root_kek_01);
-        SAVE_KEY_VAR(tsec_root_kek_02,     root_kek_02);
-        SAVE_KEY_VAR(package1_kek_06,      pkg1_kek_06);
-        SAVE_KEY_VAR(package1_kek_07,      pkg1_kek_07);
-        SAVE_KEY_VAR(package1_kek_08,      pkg1_kek_08);
-        SAVE_KEY_VAR(package1_mac_kek_06,  pkg1_mac_kek_06);
-        SAVE_KEY_VAR(package1_mac_kek_07,  pkg1_mac_kek_07);
-        SAVE_KEY_VAR(package1_mac_kek_08,  pkg1_mac_kek_08);
-        SAVE_KEY_VAR(package1_key_06,      pkg1_key_06);
-        SAVE_KEY_VAR(package1_key_07,      pkg1_key_07);
-        SAVE_KEY_VAR(package1_key_08,      pkg1_key_08);
-        SAVE_KEY_VAR(package1_mac_key_06,  pkg1_mac_key_06);
-        SAVE_KEY_VAR(package1_mac_key_07,  pkg1_mac_key_07);
-        SAVE_KEY_VAR(package1_mac_key_08,  pkg1_mac_key_08);
-    }
+		SAVE_KEY_VAR(tsec_root_kek_00,     root_kek_00);
+		SAVE_KEY_VAR(tsec_root_kek_01,     root_kek_01);
+		SAVE_KEY_VAR(tsec_root_kek_02,     root_kek_02);
+		SAVE_KEY_VAR(package1_kek_06,      pkg1_kek_06);
+		SAVE_KEY_VAR(package1_kek_07,      pkg1_kek_07);
+		SAVE_KEY_VAR(package1_kek_08,      pkg1_kek_08);
+		SAVE_KEY_VAR(package1_mac_kek_06,  pkg1_mac_kek_06);
+		SAVE_KEY_VAR(package1_mac_kek_07,  pkg1_mac_kek_07);
+		SAVE_KEY_VAR(package1_mac_kek_08,  pkg1_mac_kek_08);
+		SAVE_KEY_VAR(package1_key_06,      pkg1_key_06);
+		SAVE_KEY_VAR(package1_key_07,      pkg1_key_07);
+		SAVE_KEY_VAR(package1_key_08,      pkg1_key_08);
+		SAVE_KEY_VAR(package1_mac_key_06,  pkg1_mac_key_06);
+		SAVE_KEY_VAR(package1_mac_key_07,  pkg1_mac_key_07);
+		SAVE_KEY_VAR(package1_mac_key_08,  pkg1_mac_key_08);
+	}
 
-    if (new_keys && key_exists(new_keys->master_key)) {
-        char kn[40];
-        u32 g = (u32)new_gen_mkr;
-        s_printf(kn, "master_kek_%02x", g);
-        _save_key(kn, new_keys->master_kek,               SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "master_key_%02x", g);
-        _save_key(kn, new_keys->master_key,               SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "package2_key_%02x", g);
-        _save_key(kn, new_keys->package2_key,             SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "titlekek_%02x", g);
-        _save_key(kn, new_keys->titlekek,                 SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "key_area_key_application_%02x", g);
-        _save_key(kn, new_keys->key_area_key_application, SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "key_area_key_ocean_%02x", g);
-        _save_key(kn, new_keys->key_area_key_ocean,       SE_KEY_128_SIZE, text_buffer);
-        s_printf(kn, "key_area_key_system_%02x", g);
-        _save_key(kn, new_keys->key_area_key_system,      SE_KEY_128_SIZE, text_buffer);
-        _save_key("hovi_kek",          hovi_kek,                   SE_KEY_128_SIZE, text_buffer);
-        _save_key("tsec_root_key_00",  new_keys->tsec_root_key_00, SE_KEY_128_SIZE, text_buffer);
-        _save_key("tsec_root_key_01",  new_keys->tsec_root_key_01, SE_KEY_128_SIZE, text_buffer);
-    }
+	if (new_keys && key_exists(new_keys->master_key)) {
+		char kn[40];
+		u32 g = (u32)new_gen_mkr;
+		s_printf(kn, "master_kek_%02x", g);
+		_save_key(kn, new_keys->master_kek,               SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "master_key_%02x", g);
+		_save_key(kn, new_keys->master_key,               SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "package2_key_%02x", g);
+		_save_key(kn, new_keys->package2_key,             SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "titlekek_%02x", g);
+		_save_key(kn, new_keys->titlekek,                 SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "key_area_key_application_%02x", g);
+		_save_key(kn, new_keys->key_area_key_application, SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "key_area_key_ocean_%02x", g);
+		_save_key(kn, new_keys->key_area_key_ocean,       SE_KEY_128_SIZE, text_buffer);
+		s_printf(kn, "key_area_key_system_%02x", g);
+		_save_key(kn, new_keys->key_area_key_system,      SE_KEY_128_SIZE, text_buffer);
+		_save_key("hovi_kek",          hovi_kek,                   SE_KEY_128_SIZE, text_buffer);
+		_save_key("tsec_root_key_00",  new_keys->tsec_root_key_00, SE_KEY_128_SIZE, text_buffer);
+		_save_key("tsec_root_key_01",  new_keys->tsec_root_key_01, SE_KEY_128_SIZE, text_buffer);
+	}
 
 	gfx_printf("\n");
 	log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_KEYS_FOUNDED, _key_count, is_dev ? "dev" : "prod");
@@ -802,16 +802,16 @@ static void _derive_keys() {
 	_derive_non_unique_keys(&prod_keys, is_dev);
 	_derive_non_unique_keys(&dev_keys, is_dev);
 
-    new_gen_keys_t new_keys = {0}, new_keys_dev = {0};
-    int new_gen_mkr = 0, gap_start = 0, gap_end = -1;
-    int key_gen_result = extract_new_gen_keys(keys, &new_keys, &new_keys_dev, &new_gen_mkr, &gap_start, &gap_end);
-    if (key_gen_result > 0) {
-        log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_INFO_NEW_MASTER_KEYS, new_gen_mkr);
-        if (gap_start <= gap_end)
-            log_printf(true, LOG_WARN, LOG_MSG_KEYS_DUMP_WARN_MASTER_KEK_SOURCE, gap_start, gap_end);
-    } else if (key_gen_result == 0) {
-        log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_INFO_UP_TO_DATE_KEY_GENERATION);
-    }
+	new_gen_keys_t new_keys = {0}, new_keys_dev = {0};
+	int new_gen_mkr = 0, gap_start = 0, gap_end = -1;
+	int key_gen_result = extract_new_gen_keys(keys, &new_keys, &new_keys_dev, &new_gen_mkr, &gap_start, &gap_end);
+	if (key_gen_result > 0) {
+		log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_INFO_NEW_MASTER_KEYS, new_gen_mkr);
+		if (gap_start <= gap_end)
+			log_printf(true, LOG_WARN, LOG_MSG_KEYS_DUMP_WARN_MASTER_KEK_SOURCE, gap_start, gap_end);
+	} else if (key_gen_result == 0) {
+		log_printf(true, LOG_INFO, LOG_MSG_KEYS_DUMP_INFO_UP_TO_DATE_KEY_GENERATION);
+	}
 
 	unmount_nand_part(NULL, true, false, true, false);
 
@@ -962,9 +962,9 @@ bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 		_derive_non_unique_keys(&dev_keys, is_dev);
 		_derive_misc_keys(keys);
 
-        // new_gen_keys_t new_keys = {0}, new_keys_dev = {0};
-        // int new_gen_mkr = 0, gap_start = 0, gap_end = -1;
-        // extract_new_gen_keys(keys, &new_keys, &new_keys_dev, &new_gen_mkr, &gap_start, &gap_end);
+		// new_gen_keys_t new_keys = {0}, new_keys_dev = {0};
+		// int new_gen_mkr = 0, gap_start = 0, gap_end = -1;
+		// extract_new_gen_keys(keys, &new_keys, &new_keys_dev, &new_gen_mkr, &gap_start, &gap_end);
 
 	} else {
 		if (!GetKeysFromFile("sd:/LockSmith-RCM/prod.keys", keys)) {
@@ -987,7 +987,7 @@ bool prepare_bis_keys(bool from_file, key_storage_t *keys_out) {
 	se_aes_key_set(KS_BIS_02_CRYPT, keys->bis_key[2] + 0x00, SE_KEY_128_SIZE);
 	se_aes_key_set(KS_BIS_02_TWEAK, keys->bis_key[2] + 0x10, SE_KEY_128_SIZE);
 
-        // Not for bis but whatever
+		// Not for bis but whatever
 	se_aes_key_set(KS_NCA_HDR_CRYPT, keys->header_key + 0x00, 0x10);
 	se_aes_key_set(KS_NCA_HDR_TWEAK, keys->header_key + 0x10, 0x10);
 	// se_aes_key_set(8, keys->save_mac_key, 0x10);
