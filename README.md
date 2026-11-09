@@ -105,6 +105,14 @@ For "source/hos/pkg1.c" infos look at [this file from hekate](https://github.com
 
 ## Changelog:
 
+### 0.14.0
+
+* Add suport for firmware 23.0.0 and 23.0.1.
+* Add new dump methods, largely inspired from [this pull request](https://github.com/THZoria/Lockpick_RCMaster/pull/5).
+* Bis cache can be enabled or not during a partition mount that suport it, not an option directly accessible for the user but in the code.
+* Remove Hekate's emummc config to select an emunand (only the classic one is supported for now).
+* Some bugs fixed and some code optimization done.
+
 ### 0.13.0
 
 * Remove joycons synchronization between nands and parental control removal cause these functions doesn't work on new firmwares.
