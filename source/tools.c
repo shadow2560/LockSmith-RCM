@@ -483,12 +483,12 @@ bool delete_save_from_nand(const char* savename, bool on_system_part) {
 
 	if (on_system_part) {
 		log_printf(true, LOG_INFO, LOG_MSG_DELETE_SAVE_SYSTEM, savename);
-		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 			return false;
 		}
 	} else {
 		log_printf(true, LOG_INFO, LOG_MSG_DELETE_SAVE_USER, savename);
-		if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+		if (!mount_nand_part(&gpt, "USER", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 			return false;
 		}
 	}
@@ -883,11 +883,11 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 			emu_cfg.enabled = true;
 		}
 		if (on_system_part) {
-			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 				return false;
 			}
 		} else {
-			if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "USER", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 				return false;
 			}
 		}
@@ -926,12 +926,12 @@ bool f_transfer_from_nands(const char *file_path, bool on_system_part) {
 			emu_cfg.enabled = false;
 		}
 		if (on_system_part) {
-			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "SYSTEM", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 				res = FR_DISK_ERR;
 				break;
 			}
 		} else {
-			if (!mount_nand_part(&gpt, "USER", true, true, true, true, true, NULL, NULL, NULL, NULL)) {
+			if (!mount_nand_part(&gpt, "USER", true, true, true, false, true, NULL, NULL, NULL, NULL)) {
 				res = FR_DISK_ERR;
 				break;
 			}
