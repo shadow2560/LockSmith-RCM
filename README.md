@@ -109,6 +109,11 @@ For "/LockSmith/hos/pkg1.c" infos look at [this file from hekate](https://github
 
 ## Changelog:
 
+### 0.91.0 (no sources published)
+
+* Security of some operations reenforced.
+* Lots of bugs fixed.
+
 ### 0.90.0 (no sources published)
 
 * The payload now only launch "sd:/LockSmith/LockSmith.bin" or "sd:/LockSmith/LockSmith_debug.bin" (this last one have priority if the two are present), it's only a bootloader for the real payload witch work like NYX in Hekate, this make the payload size not a problem anymore. The file launched by this bootloader is signed so it can only launch the signed files that I will release for this payload. Adding this introduce lots of changes in the payload's code.
