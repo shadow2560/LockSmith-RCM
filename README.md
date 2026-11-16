@@ -25,7 +25,7 @@ This payload, largely based on [Hekate](https://github.com/CTCaer/hekate), it BD
 * Build and flash a PRODINFO, from donor or from scratch, based on [ProdinfoGen](https://github.com/CaramelDunes/prodinfo_gen) but largely modified. If you choose to flash it you must backup your PRODINFO first if you want to restore it later, the payload will not do it.
 * Set auto-RCM for unpatched consoles (largely based on Hekate's same function)
 * Fix archive bits on the SD (largely based on Hekate's same function)
-* Mount SD, EMMC BOOT0/BOOT1/RAWNAND via USB (largely based on Hekate's same functions)
+* Mount SD, EMMC BOOT0/BOOT1/RAWNAND via USB (largely based on Hekate's same functions). Can also mount EMUMMC BOOT0/BOOT1/RAWNAND but it's realy slow on files based emunand
 * Obtain infos of the console, largely based on Hekate same functions
 * Fix downgrade from firmware 21.0.0+ to a lower firmware (20.0.0 max), based on [DowngradeFixer](https://github.com/sthetix/DowngradeFixer) but largely modified
 * Remove parental control (disabled for now cause not worked on new firmwares)
@@ -108,6 +108,12 @@ If the payload freeze during keys dump try to modify the file "/LockSmith/keys/k
 For "/LockSmith/hos/pkg1.c" infos look at [this file from hekate](https://github.com/cTCaer/hekate/blob/master/bootloader/hos/hos.c).
 
 ## Changelog:
+
+### 0.92.0 (no sources published)
+
+* Fix a critical bug with read/write on emummc witch was not redirected to it but to the sysnand.
+* Add the possibility to mount EMUMMC partitions via USB (with a file based emunand this is very slow)
+* Fix a bug with some menus witch not display correctly some elements
 
 ### 0.91.0 (no sources published)
 
